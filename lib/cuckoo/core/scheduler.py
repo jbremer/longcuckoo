@@ -266,8 +266,10 @@ class AnalysisManager(Thread):
             machinery.start(self.machine.label, revert=is_first_task)
 
             # Initialize the guest manager.
+            # FIXME - The critical timeout options is analysis_timeout + 60 sec
+            #           should it be configurable?
             guest = GuestManager(self.machine.name, self.machine.ip,
-                                 self.machine.platform)
+                    options["timeout"] + 60, self.machine.platform)
 
             # Start the analysis if we are the first task of a series
             if is_first_task:
