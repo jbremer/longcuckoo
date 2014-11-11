@@ -40,6 +40,16 @@ def index(request):
             new = task.to_dict()
             new["target"] = os.path.basename(new["target"])
             new["sample"] = db.view_sample(new["sample_id"]).to_dict()
+            new["pcap_file_id"] = ""
+            new["pcap_file_length"] = 0
+
+            report = results_db.analysis.find({"info.id": int(task.id)}, sort=[("_id", pymongo.DESCENDING)])
+            if report.count() and "pcap_id" in report[0]["network"]:
+                file_object = results_db.fs.files.find_one({"_id": ObjectId(report[0]["network"]["pcap_id"])})
+                file_item = fs.get(ObjectId(file_object["_id"]))
+                new["pcap_file_id"] = report[0]["network"]["pcap_id"]
+                new["pcap_file_length"] = file_item.length
+
             if db.view_errors(task.id):
                 new["errors"] = True
 

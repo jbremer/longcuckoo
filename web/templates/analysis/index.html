@@ -22,7 +22,7 @@
                     <th>Timestamp</th>
                     <th>MD5</th>
                     <th>Status</th>
-                    <th>Action</th>
+                    <th>Data</th>
                 </tr>
                 </thead>
                 <tbody>
@@ -64,12 +64,13 @@
                             {% endif %}
                         </td>
                         <td>
-                            <div class="btn-group">
-                                {% if analysis.status != "completed" and analysis.status != "reported" %}
-                                    <a href="#" class="btn btn-danger">Stop</a>
-                                {% endif %}
-                            </div>
+                            {% if analysis.pcap_file_id %}
+                                <a class="btn btn-primary" href="{% url "analysis.views.file" "pcap" analysis.pcap_file_id %}"><span class="glyphicon glyphicon-download"></span> pcap - {{ analysis.pcap_file_length|filesizeformat }} </a>
+                            {% else %}
+                                <a class="btn btn-primary disabled" href="#"><span class="glyphicon glyphicon-download"></span> pcap - unavailable</a>
+                            {% endif %}
                         </td>
+
                     </tr>
                 {% endfor %}
                 </tbody>
