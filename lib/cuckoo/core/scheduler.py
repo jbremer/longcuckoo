@@ -119,6 +119,9 @@ class AnalysisManager(Thread):
                           "analysis aborted", self.task.target, self.binary)
                 return False
 
+        return True
+
+    def create_symlink(self):
         try:
             new_binary_path = os.path.join(self.storage, "binary")
 
@@ -129,8 +132,6 @@ class AnalysisManager(Thread):
         except (AttributeError, OSError) as e:
             log.error("Unable to create symlink/copy from \"%s\" to "
                       "\"%s\": %s", self.binary, self.storage, e)
-
-        return True
 
     def acquire_machine(self):
         """Acquire an analysis machine from the pool of available ones."""
@@ -206,22 +207,34 @@ class AnalysisManager(Thread):
         log.info("Starting analysis of %s \"%s\" (task=%d)",
                  self.task.category.upper(), self.task.target, self.task.id)
 
-        # FIXME - First task and 2 tasks scheduled?
-        is_first_task = len(Database().list_tasks(experiment=self.task.experiment_id)) == 2
-
         # Initialize the analysis folders.
         if not self.init_storage():
             return False
 
-        if self.task.category == "file" and is_first_task:
-            # Check whether the file has been changed for some unknown reason.
-            # And fail this analysis if it has been modified.
-            if not self.check_file():
-                return False
+        if self.task.category == "file":
+            sample = Database().view_sample(self.task.sample_id)
 
-            # Store a copy of the original file.
-            if not self.store_file():
-                return False
+            is_first_task = len(Database().list_tasks(experiment=self.task.experiment_id)) == 1
+
+            if is_first_task:
+                # Check whether the file has been changed for some unknown reason.
+                # And fail this analysis if it has been modified.
+                if not self.check_file():
+                    return False
+
+                # Store a copy of the original file.
+                if not self.store_file():
+                    return False
+
+            self.binary = os.path.join(CUCKOO_ROOT, "storage", "binaries", sample.sha256)
+
+            self.create_symlink()
+
+        # FIXME - Scheduling should happen at the end of the experiment, but
+        #           since the management of the experiment is not final that
+        #           will do it.
+        if self.task.repeat == TASK_RECURRENT:
+            Database().schedule(self.task.id)
 
         # Acquire analysis machine.
         try:
@@ -546,9 +559,6 @@ class Scheduler:
 
                 if task:
                     log.debug("Processing task #%s", task.id)
-
-                    if task.repeat == TASK_RECURRENT:
-                        self.db.schedule(task.id)
 
                     self.total_analysis_count += 1
 
