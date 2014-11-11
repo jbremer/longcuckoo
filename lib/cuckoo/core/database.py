@@ -983,6 +983,20 @@ class Database(object):
                    tags, task.memory, task.enforce_timeout, task.clock,
                    task.experiment, task.repeat, task.added_on)
 
+    def list_experiments(self, limit=None, details=False, category=None,
+                    offset=None, status=None, not_status=None):
+        session = self.Session()
+        try:
+            experiments = session.query(Task).filter().order_by("added_on desc")
+            experiments = experiments.group_by(Task.experiment)
+            experiments = experiments.order_by("added_on desc").limit(limit).offset(offset).all()
+        except SQLAlchemyError as e:
+            log.debug("Database error listing tasks: {0}".format(e))
+            return None
+        finally:
+            session.close()
+        return experiments
+
     def list_tasks(self, limit=None, details=False, category=None,
                    offset=None, status=None, sample_id=None, not_status=None,
                    experiment=None, completed_after=None, order_by=None):
