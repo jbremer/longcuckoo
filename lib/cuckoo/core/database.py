@@ -369,8 +369,8 @@ class Database(object):
         # Disable SQL logging. Turn it on for debugging.
         self.engine.echo = False
         # Connection timeout.
-        if cfg.database.timeout:
-            self.engine.pool_timeout = cfg.database.timeout
+        if self.cfg.database.timeout:
+            self.engine.pool_timeout = self.cfg.database.timeout
         else:
             self.engine.pool_timeout = 60
         # Create schema.
@@ -807,6 +807,9 @@ class Database(object):
         if not priority:
             priority = 1
 
+        if timeout <= 0:
+            timeout = self.cfg.timeouts.default
+
         if isinstance(obj, File):
             sample = Sample(md5=obj.get_md5(),
                             crc32=obj.get_crc32(),
@@ -849,7 +852,7 @@ class Database(object):
             return None
 
         task.category = obj.__class__.__name__.lower()
-        task.timeout = timeout
+        task.timeout = min(timeout, self.cfg.timeouts.critical)
         task.package = package
         task.options = options
         task.priority = priority

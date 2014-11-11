@@ -28,7 +28,7 @@ class GuestManager:
     machines.
     """
 
-    def __init__(self, vm_id, ip, platform="windows"):
+    def __init__(self, vm_id, ip, critical_timeout, platform="windows"):
         """@param ip: guest's IP address.
         @param platform: guest's operating system type.
         """
@@ -36,8 +36,7 @@ class GuestManager:
         self.ip = ip
         self.platform = platform
 
-        self.cfg = Config()
-        self.timeout = self.cfg.timeouts.critical
+        self.timeout = critical_timeout
 
         url = "http://{0}:{1}".format(ip, CUCKOO_GUEST_PORT)
         self.server = TimeoutServer(url, allow_none=True,
@@ -126,13 +125,6 @@ class GuestManager:
         # TODO: deal with unicode URLs.
         if options["category"] == "file":
             options["file_name"] = sanitize_filename(options["file_name"])
-
-        # If the analysis timeout is higher than the critical timeout,
-        # automatically increase the critical timeout by one minute.
-        if options["timeout"] > self.timeout:
-            log.debug("Automatically increased critical timeout to %s",
-                      self.timeout)
-            self.timeout = options["timeout"] + 60
 
         # Get and set dynamically generated resultserver port.
         options["port"] = str(ResultServer().port)
