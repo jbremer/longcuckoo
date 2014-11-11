@@ -29,7 +29,7 @@
                 {% for analysis in files %}
                     <tr>
                         <td>{{ analysis.id }}</td>
-                        <td><a href="{% url "analysis.views.experiment" analysis.experiment %}">{{ analysis.experiment }} - {{ analysis.target }}</a></td>
+                        <td><a href="{% url "analysis.views.experiment" analysis.experiment.id %}">{{ analysis.experiment.id }} - {{ analysis.experiment.name }}</a></td>
                         <td>
                         {% if analysis.status == "reported" %}
                             {{analysis.completed_on}}
