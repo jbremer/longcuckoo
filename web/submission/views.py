@@ -11,7 +11,7 @@ from django.template import RequestContext
 
 sys.path.append(settings.CUCKOO_PATH)
 
-from lib.cuckoo.core.database import Database
+from lib.cuckoo.core.database import Database, TASK_SINGLE, TASK_RECURRENT
 from lib.cuckoo.common.utils import store_temp_file
 
 def force_int(value):
@@ -33,6 +33,7 @@ def index(request):
         memory = bool(request.POST.get("memory", False))
         enforce_timeout = bool(request.POST.get("enforce_timeout", False))
         tags = request.POST.get("tags", None)
+        recurring = request.POST.get("recurring", None)
 
         if request.POST.get("free"):
             if options:
@@ -43,6 +44,10 @@ def index(request):
             if options:
                 options += ","
             options += "procmemdump=yes"
+
+        recurring = TASK_SINGLE
+        if request.POST.get("recurring"):
+            recurring = TASK_RECURRENT
 
         db = Database()
         task_ids = []
@@ -80,7 +85,8 @@ def index(request):
                                           custom=custom,
                                           memory=memory,
                                           enforce_timeout=enforce_timeout,
-                                          tags=tags)
+                                          tags=tags,
+                                          repeat=recurring)
                     if task_id:
                         task_ids.append(task_id)
         elif "url" in request.POST:
