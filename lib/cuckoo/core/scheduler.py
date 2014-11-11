@@ -143,7 +143,7 @@ class AnalysisManager(Thread):
             # In some cases it's possible that we enter this loop without
             # having any available machines. We should make sure this is not
             # such case, or the analysis task will fail completely.
-            if not machinery.availables(locked_by=self.task.experiment):
+            if not machinery.availables(locked_by=self.task.experiment_id):
                 machine_lock.release()
                 time.sleep(1)
                 continue
@@ -154,7 +154,7 @@ class AnalysisManager(Thread):
                 machine = machinery.acquire(machine_id=self.task.machine,
                                             platform=self.task.platform,
                                             tags=self.task.tags,
-                                            locked_by=self.task.experiment)
+                                            locked_by=self.task.experiment_id)
             finally:
                 machine_lock.release()
 
@@ -206,11 +206,14 @@ class AnalysisManager(Thread):
         log.info("Starting analysis of %s \"%s\" (task=%d)",
                  self.task.category.upper(), self.task.target, self.task.id)
 
+        # FIXME - First task and 2 tasks scheduled?
+        is_first_task = len(Database().list_tasks(experiment=self.task.experiment_id)) == 2
+
         # Initialize the analysis folders.
         if not self.init_storage():
             return False
 
-        if self.task.category == "file":
+        if self.task.category == "file" and is_first_task:
             # Check whether the file has been changed for some unknown reason.
             # And fail this analysis if it has been modified.
             if not self.check_file():
@@ -247,14 +250,14 @@ class AnalysisManager(Thread):
                                                self.machine.label,
                                                machinery.__class__.__name__)
             # Start the machine, revert only if we are the first task in the experiment
-            machinery.start(self.machine.label, revert=(self.task.id == self.task.experiment))
+            machinery.start(self.machine.label, revert=is_first_task)
 
             # Initialize the guest manager.
             guest = GuestManager(self.machine.name, self.machine.ip,
                                  self.machine.platform)
 
             # Start the analysis if we are the first task of a series
-            if self.task.id == self.task.experiment:
+            if is_first_task:
                 guest.start_analysis(options)
 
             guest.wait_for_completion()
@@ -545,13 +548,7 @@ class Scheduler:
                     log.debug("Processing task #%s", task.id)
 
                     if task.repeat == TASK_RECURRENT:
-                        # Schedule a new task
-                        add = self.db.add_path if task.category == "file" else self.db.add_url
-                        add(task.target, task.timeout, task.package, task.options,
-                                task.priority, task.custom, task.machine, task.platform,
-                                task.tags, task.memory, task.enforce_timeout, task.clock,
-                                task.experiment, task.repeat, task.added_on+timedelta(days=1),
-                                status=TASK_SCHEDULED)
+                        self.db.schedule(task.id)
 
                     self.total_analysis_count += 1
 
