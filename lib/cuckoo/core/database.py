@@ -1117,7 +1117,7 @@ class Database(object):
         session = self.Session()
         try:
             if details:
-                task = session.query(Task).options(joinedload("guest"), joinedload("errors"), joinedload("tags")).get(task_id)
+                task = session.query(Task).options(joinedload("guest"), joinedload("errors"), joinedload("tags"), joinedload("experiment"), joinedload("sample")).get(task_id)
             else:
                 task = session.query(Task).get(task_id)
         except SQLAlchemyError as e:
