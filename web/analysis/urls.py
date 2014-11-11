@@ -13,6 +13,8 @@ urlpatterns = patterns("",
     url(r"^search/(?P<task_id>\d+)/$", "analysis.views.search_behavior"),
     url(r"^search/$", "analysis.views.search"),
     url(r"^pending/$", "analysis.views.pending"),
+    url(r"^experiment/$", "analysis.views.experiment"),
+    url(r"^experiment/(?P<experiment_id>\d+)/$", "analysis.views.experiment"),
     # Support for recurrent analysis
     url(r"^schedule/(?P<task_id>\d+)/$", "analysis.views.schedule"),
     url(r"^unschedule/(?P<task_id>\d+)/$", "analysis.views.unschedule"),

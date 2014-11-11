@@ -4,6 +4,8 @@
 
 import sys
 import re
+import time
+import datetime
 import os
 
 from django.conf import settings
@@ -38,6 +40,7 @@ def index(request):
     if tasks_files:
         for task in tasks_files:
             new = task.to_dict()
+            new["target"] = os.path.basename(new["target"])
             new["sample"] = db.view_sample(new["sample_id"]).to_dict()
 
             filename = os.path.basename(new["target"])
@@ -62,13 +65,66 @@ def index(request):
                               context_instance=RequestContext(request))
 
 @require_safe
+def experiment(request, experiment_id=None):
+    db = Database()
+
+    if experiment_id:
+        # Get tasks for the provided experiment
+        tasks_files = db.list_tasks(limit=50, category="file", experiment=experiment_id)
+
+        analyses_files = []
+
+        if tasks_files:
+            for task in tasks_files:
+                new = task.to_dict()
+                new["timeout"] = time.strftime('%H:%M:%S', time.gmtime(new["timeout"]))
+                new["target"] = os.path.basename(new["target"])
+                new["sample"] = db.view_sample(new["sample_id"]).to_dict()
+                new["pcap_file_id"] = ""
+                new["pcap_file_length"] = 0
+
+                report = results_db.analysis.find({"info.id": int(task.id)}, sort=[("_id", pymongo.DESCENDING)])
+                if report.count() and "pcap_id" in report[0]["network"]:
+                    file_object = results_db.fs.files.find_one({"_id": ObjectId(report[0]["network"]["pcap_id"])})
+                    file_item = fs.get(ObjectId(file_object["_id"]))
+                    new["pcap_file_id"] = report[0]["network"]["pcap_id"]
+                    new["pcap_file_length"] = file_item.length
+
+                if db.view_errors(task.id):
+                    new["errors"] = True
+
+                analyses_files.append(new)
+
+        return render_to_response("analysis/index.html",
+                                  {"files": analyses_files},
+                                  context_instance=RequestContext(request))
+    else:
+        # List all experiments
+        experiments = db.list_experiments()
+        analyses = []
+
+        if experiments:
+            for experiment in experiments:
+                exp = experiment.to_dict()
+                exp["timeout"] = time.strftime('%H:%M:%S', time.gmtime(exp["timeout"]))
+                exp["target"] = os.path.basename(exp["target"])
+                analyses.append(exp)
+
+        return render_to_response("analysis/experiment.html",
+                {"tasks": analyses},
+                context_instance=RequestContext(request))
+
+@require_safe
 def pending(request):
     db = Database()
     tasks = db.list_tasks(status=[TASK_PENDING,TASK_SCHEDULED,TASK_UNSCHEDULED])
 
     pending = []
     for task in tasks:
-        pending.append(task.to_dict())
+        pending_task = task.to_dict()
+        pending_task["target"] = os.path.basename(pending_task["target"])
+        pending_task["added_on"] = datetime.datetime.strptime(pending_task["added_on"], "%Y-%m-%d %H:%M:%S")
+        pending.append(pending_task)
 
     return render_to_response("analysis/pending.html",
                               {"tasks": pending},
