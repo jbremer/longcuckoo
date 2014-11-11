@@ -52,103 +52,153 @@ $(document).ready( function() {
     <div class="col-md-6 col-md-offset-3 center">
         <p style="margin-bottom: 10px;"><img src="{{ STATIC_URL }}graphic/cuckoo.png" /></p>
 
-        <form role="form" action="" method="post" enctype="multipart/form-data">{% csrf_token %}
+        <form role="form" action="" method="post" enctype="multipart/form-data" class="form-horizontal">{% csrf_token %}
             <div class="tabbable">
                 <ul class="nav nav-tabs">
                     <li class="active"><a href="#file" data-toggle="tab"><span class="glyphicon glyphicon-file"></span> File</a></li>
                     <li><a href="#url" data-toggle="tab"><span class="glyphicon glyphicon-globe"></span> URL</a></li>
                 </ul>
                 <div class="tab-content">
+                    <!-- File -->
                     <div class="tab-pane fade in active" id="file">
-                        <div class="input-group col-md-6">
-                            <span class="input-group-btn">
-                                <input type="text" class="form-control" readonly>
-                                <span class="btn btn-primary btn-file">
-                                    Select <input type="file" name="sample" multiple="multiple">
+                        <div class="form-group">
+                            <label class="col-sm-3 control-label">Sample</label>
+                            <div class="input-group col-md-6">
+                                <span class="input-group-btn">
+                                    <input type="text" class="form-control" readonly>
+                                    <span class="btn btn-primary btn-file">
+                                        Select <input type="file" name="sample" multiple="multiple">
+                                    </span>
                                 </span>
-                            </span>
+                            </div>
                         </div>
                     </div>
+
+                    <!-- URL -->
                     <div class="tab-pane fade" id="url">
-                        <div class="input-group">
-                            <label class="sr-only" form="form_url">URL</label>
-                            <input type="text" class="form-control" id="form_url" name="url" placeholder="URL" />
+                        <div class="form-group">
+                            <label class="col-sm-3 control-label" form="form_url">URL</label>
+                            <div class="input-group col-md-6">
+                                <input type="text" class="form-control" id="form_url" name="url" placeholder="URL" />
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
-            <div class="panel" id="accordion" style="margin-top: 20px;">
+
+            <!-- Basic options -->
+            <div class="panel" style="margin-top: 20px;">
                 <div class="panel panel-default">
+                    <!-- Basic options - panel header -->
                     <div class="panel-heading">
-                        <a class="accordion-toggle" data-toggle="collapse" data-parent="#accordion" href="#options"><i class="icon icon-cog"></i> Advanced Options</a>
+                        <span><a href="#">Options</a></span>
                     </div>
-                    <div id="options" class="panel-collapse collapse" style="text-align: left;">
-                        <div class="panel-body">
-                            <div class="form-group">
-                                <label for="form_package">Analysis Package</label>
-                                <select class="form-control" id="form_package" name="package">
-                                    <option value="" active>Detect Automatically</option>
-                                    {% for package in packages %}
-                                    <option value="{{package}}">{{package}}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label for="form_timeout">Timeout</label>
+                    <!-- Basic options - panel body -->
+                    <div class="panel-body" style="text-align: left;">
+                        <div class="form-group">
+                            <label for="form_timeout" class="col-sm-3 control-label">Duration</label>
+                            <div class="col-sm-9">
                                 <input type="text" class="form-control" id="form_timeout" name="timeout" />
+                                <p class="help-block">Duration of a run in minutes. (e.g. for 2 hours, type 120)</p>
                             </div>
-                            <div class="form-group">
-                                <label for="form_options">Options</label>
-                                <input type="text" class="form-control" id="form_options" name="options" />
-                            </div>
-                            <div class="form-group">
-                                <label for="form_priority">Priority</label>
-                                <select class="form-control" id="form_priority" name="priority">
-                                    <option value="1">Low</option>
-                                    <option value="2">Medium</option>
-                                    <option value="3">High</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label for="form_machine">Machine</label>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="form_machine" class="col-sm-3 control-label">Machine</label>
+                            <div class="col-sm-9">
                                 <select class="form-control" id="form_machine" name="machine">
                                 {% for id,label in machines %}
                                     <option value="{{id}}">{{label}}</option>
                                 {% endfor %}
                                 </select>
                             </div>
+                        </div>
+
+                        <div class="checkbox">
+                            <div class="col-sm-3"></div>
+                            <label class="col-sm-9">
+                                <input type="checkbox" name="recurring" /> Recurring
+                                <span class="text-muted"><small>(multiple run while keeping the vm state)</small></span>
+                            </label>
+                        </div>
+
+                        <div class="checkbox">
+                            <div class="col-sm-3"></div>
+                            <label class="col-sm-9">
+                                <input type="checkbox" name="free" /> No Injection
+                                <span class="text-muted"><small>(disable behavioral analysis)</small></span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Advanced options -->
+            <div class="panel" id="accordion" style="margin-top: 20px;">
+                <div class="panel panel-default">
+                    <!-- Advanced options - panel header -->
+                    <div class="panel-heading">
+                        <a class="accordion-toggle" data-toggle="collapse" data-parent="#accordion" href="#options"><i class="icon icon-cog"></i> Advanced Options</a>
+                    </div>
+                    <!-- Advanced options - panel body -->
+                    <div id="options" class="panel-collapse collapse" style="text-align: left;">
+                        <div class="panel-body">
                             <div class="form-group">
-                                <label for="form_custom">Custom</label>
-                                <input type="text" class="form-control" id="form_custom" name="custom" />
+                                <label for="form_package" class="col-sm-3 control-label">Analysis Package</label>
+                                <div class="col-sm-9">
+                                    <select class="form-control" id="form_package" name="package">
+                                        <option value="" active>Detect Automatically</option>
+                                        {% for package in packages %}
+                                        <option value="{{package}}">{{package}}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="form_options" class="col-sm-3 control-label">Options</label>
+                                <div class="col-sm-9">
+                                    <input type="text" class="form-control" id="form_options" name="options" />
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="form_priority" class="col-sm-3 control-label">Priority</label>
+                                <div class="col-sm-9">
+                                    <select class="form-control" id="form_priority" name="priority">
+                                        <option value="1">Low</option>
+                                        <option value="2">Medium</option>
+                                        <option value="3">High</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="form_custom" class="col-sm-3 control-label">Custom</label>
+                                <div class="col-sm-9">
+                                    <input type="text" class="form-control" id="form_custom" name="custom" />
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="form_tags" class="col-sm-3 control-label">Tags</label>
+                                <div class="col-sm-9">
+                                    <input type="text" class="form-control" id="form_tags" name="tags" />
+                                </div>
                             </div>
                             <div class="checkbox">
-                                <label>
-                                    <input type="checkbox" name="free" /> No Injection <span class="text-muted"><small>(disable behavioral analysis)</small></span>
-                                </label>
-                            </div>
-                            <div class="checkbox">
-                                <label>
+                                <div class="col-sm-3"></div>
+                                <label class="col-sm-9">
                                     <input type="checkbox" name="process_memory" /> Process Memory Dump
                                 </label>
                             </div>
                             <div class="checkbox">
-                                <label>
+                                <div class="col-sm-3"></div>
+                                <label class="col-sm-9">
                                     <input type="checkbox" name="memory" /> Full Memory Dump
                                 </label>
                             </div>
                             <div class="checkbox">
-                                <label>
+                                <div class="col-sm-3"></div>
+                                <label class="col-sm-9">
                                     <input type="checkbox" name="enforce_timeout" /> Enforce Timeout
                                 </label>
-                            </div>
-                            <div class="checkbox">
-                                <label>
-                                    <input type="checkbox" name="recurring" /> Recurring <span class="text-muted">(multiple run while keeping the vm state)</small></span>
-                                </label>
-                            </div>
-                            <div class="form-group">
-                                <label for="form_tags">Tags</label>
-                                <input type="text" class="form-control" id="form_tags" name="tags" />
                             </div>
                         </div>
                     </div>
