@@ -6,7 +6,7 @@ import os
 import json
 import logging
 import threading
-from datetime import datetime
+from datetime import datetime,timedelta
 
 from lib.cuckoo.common.config import Config
 from lib.cuckoo.common.constants import CUCKOO_ROOT
@@ -23,6 +23,7 @@ try:
     from sqlalchemy.ext.declarative import declarative_base
     from sqlalchemy.exc import SQLAlchemyError, IntegrityError
     from sqlalchemy.orm import sessionmaker, relationship, joinedload, backref, aliased
+    from sqlalchemy.orm.session import make_transient
     from sqlalchemy.pool import NullPool
     Base = declarative_base()
 except ImportError:
@@ -250,12 +251,21 @@ class Error(Base):
     def __repr__(self):
         return "<Error('{0}','{1}','{2}')>".format(self.id, self.message, self.task_id)
 
+class Experiment(Base):
+    """Experiment regroups a list of tasks together."""
+    __tablename__ = "experiments"
+
+    id = Column(Integer(), primary_key=True)
+    name = Column(Text(), nullable=False)
+    added_on = Column(DateTime(timezone=False),
+                      default=datetime.now,
+                      nullable=False)
+
 class Task(Base):
     """Analysis task queue."""
     __tablename__ = "tasks"
 
     id = Column(Integer(), primary_key=True)
-    experiment = Column(Integer(), nullable=True)
     repeat = Column(Enum(TASK_SINGLE, TASK_RECURRENT, name="repeat_type"), server_default=TASK_SINGLE, nullable=False)
     target = Column(Text(), nullable=False)
     category = Column(String(255), nullable=False)
@@ -285,7 +295,11 @@ class Task(Base):
                     server_default=TASK_PENDING,
                     nullable=False)
     sample_id = Column(Integer, ForeignKey("samples.id"), nullable=True)
+    experiment_id = Column(Integer, ForeignKey("experiments.id"), nullable=False)
+
     sample = relationship("Sample", backref="tasks")
+    experiment = relationship("Experiment", backref="tasks", lazy="joined")
+
     guest = relationship("Guest", uselist=False, backref="tasks", cascade="save-update, delete")
     errors = relationship("Error", backref="tasks", cascade="save-update, delete")
 
@@ -539,9 +553,9 @@ class Database(object):
         session = self.Session()
         row = None
         try:
-            subquery = session.query(Task.experiment).filter(task1.experiment == task2.experiment).filter(task2.status == TASK_RUNNING)
             task1 = aliased(Task)
             task2 = aliased(Task)
+            subquery = session.query(Task.experiment).filter(task1.experiment_id == task2.experiment_id).filter(task2.status == TASK_RUNNING)
 
             if machine != "":
                 row = session.query(Task).filter(Task.status == status).filter(Task.added_on <= datetime.now()).filter(Machine.name==machine).order_by("priority desc, added_on").filter(~Task.experiment.in_(subquery)).first()
@@ -835,7 +849,7 @@ class Database(object):
     def add(self, obj, timeout=0, package="", options="", priority=1,
             custom="", machine="", platform="", tags=None,
             memory=False, enforce_timeout=False, clock=None,
-            experiment=None, repeat=None, added_on=None, status=TASK_PENDING):
+            name=None, repeat=None, added_on=None, status=TASK_PENDING):
         """Add a task to database.
         @param obj: object to add (File or URL).
         @param timeout: selected timeout.
@@ -890,6 +904,16 @@ class Database(object):
         elif isinstance(obj, URL):
             task = Task(obj.url)
 
+        # Create an experiment
+        experiment = Experiment(name=name)
+        session.add(experiment)
+        try:
+            session.commit()
+        except SQLAlchemyError as e:
+            log.debug("Database error adding experiment: {0}".format(e))
+            session.close()
+            return None
+
         task.category = obj.__class__.__name__.lower()
         task.timeout = timeout
         task.package = package
@@ -900,7 +924,7 @@ class Database(object):
         task.platform = platform
         task.memory = memory
         task.enforce_timeout = enforce_timeout
-        task.experiment = experiment
+        task.experiment_id = experiment.id
         task.repeat = repeat
         task.added_on = added_on
         task.status = status
@@ -925,11 +949,6 @@ class Database(object):
         try:
             session.commit()
             task_id = task.id
-            # If no experiment is provided, this is the first task of the experiment
-            if not task.experiment:
-                task.experiment = task_id
-                session.merge(task)
-                session.commit()
         except SQLAlchemyError as e:
             log.debug("Database error adding task: {0}".format(e))
             session.rollback()
@@ -943,7 +962,8 @@ class Database(object):
     def add_path(self, file_path, timeout=0, package="", options="",
                  priority=1, custom="", machine="", platform="", tags=None,
                  memory=False, enforce_timeout=False, clock=None,
-                 experiment=None, repeat=None, added_on=None, status=TASK_PENDING):
+                 experiment=None, repeat=None, added_on=None, status=TASK_PENDING,
+                 name=""):
         """Add a task to database from file path.
         @param file_path: sample path.
         @param timeout: selected timeout.
@@ -970,12 +990,12 @@ class Database(object):
 
         return self.add(File(file_path), timeout, package, options, priority,
                         custom, machine, platform, tags, memory,
-                        enforce_timeout, clock, experiment, repeat, added_on, status)
+                        enforce_timeout, clock, name, repeat, added_on, status)
 
     @classlock
     def add_url(self, url, timeout=0, package="", options="", priority=1,
                 custom="", machine="", platform="", tags=None, memory=False,
-                enforce_timeout=False, clock=None, experiment=None, repeat=None,
+                enforce_timeout=False, clock=None, name=None, repeat=None,
                 added_on=None, status=TASK_PENDING):
         """Add a task to database from url.
         @param url: url.
@@ -1000,7 +1020,7 @@ class Database(object):
 
         return self.add(URL(url), timeout, package, options, priority,
                         custom, machine, platform, tags, memory,
-                        enforce_timeout, clock, experiment, repeat, added_on,
+                        enforce_timeout, clock, name, repeat, added_on,
                         status)
 
     @classlock
@@ -1050,19 +1070,45 @@ class Database(object):
 
         return add(task.target, task.timeout, task.package, task.options,
                    task.priority, task.custom, task.machine, task.platform,
-                   tags, task.memory, task.enforce_timeout, task.clock,
-                   task.experiment, task.repeat, task.added_on)
+                   tags, task.memory, task.enforce_timeout, task.clock)
+
+    def schedule(self, task_id):
+        session = self.Session()
+
+        task = self.view_task(task_id)
+
+        if not task:
+            return None
+
+        try:
+            make_transient(task)
+            task.id = None
+            task.added_on = task.added_on + timedelta(days=1)
+            task.status = TASK_SCHEDULED
+            task.started_on = None
+            task.completed_on = None
+
+            session.add(task)
+            session.commit()
+        except SQLAlchemyError as e:
+            log.debug("Database error rescheduling task: {0}".format(e))
+            session.rollback()
+            return None
+        finally:
+            session.close()
+
+        return task
 
     @classlock
     def list_experiments(self, limit=None, details=False, category=None,
                     offset=None, status=None, not_status=None):
         session = self.Session()
         try:
-            experiments = session.query(Task).filter().order_by("added_on desc")
-            experiments = experiments.group_by(Task.experiment)
-            experiments = experiments.order_by("added_on desc").limit(limit).offset(offset).all()
+            experiments = session.query(Experiment).options(joinedload('tasks')).order_by(Experiment.id).all()
+            for experiment in experiments:
+                experiment.last_task = experiment.tasks[-1]
         except SQLAlchemyError as e:
-            log.debug("Database error listing tasks: {0}".format(e))
+            log.debug("Database error listing experiments: {0}".format(e))
             return None
         finally:
             session.close()
@@ -1097,14 +1143,16 @@ class Database(object):
             if details:
                 search = search.options(joinedload("guest"), joinedload("errors"), joinedload("tags"))
             if experiment:
-                search = search.filter(Task.experiment == experiment)
+                search = search.filter(Task.experiment_id == experiment)
             if sample_id is not None:
                 search = search.filter_by(sample_id=sample_id)
             if completed_after:
                 search = search.filter(Task.completed_on > completed_after)
 
-            search = search.order_by(order_by or "added_on desc")
-            tasks = search.limit(limit).offset(offset).all()
+            tasks = search.order_by(Task.added_on.desc()).limit(limit).offset(offset).all()
+
+            for task in tasks:
+                task.experiment
         except SQLAlchemyError as e:
             log.debug("Database error listing tasks: {0}".format(e))
             return []
