@@ -6,6 +6,7 @@ import os
 import re
 import logging
 import time
+import threading
 
 import xml.etree.ElementTree as ET
 
@@ -234,16 +235,18 @@ class Machinery(object):
         """
         self.db.set_machine_status(label, status)
 
-    def start(self, label=None):
+    def start(self, label=None, revert=True):
         """Start a machine.
         @param label: machine name.
+        @param revert: revert the vm to its snapshot
         @raise NotImplementedError: this method is abstract.
         """
         raise NotImplementedError
 
-    def stop(self, label=None):
+    def stop(self, label=None, force=True):
         """Stop a machine.
         @param label: machine name.
+        @param force: poweroff instead of ACPI shutdown
         @raise NotImplementedError: this method is abstract.
         """
         raise NotImplementedError
@@ -330,9 +333,10 @@ class LibVirtMachinery(Machinery):
         # currently still active.
         super(LibVirtMachinery, self)._initialize_check()
 
-    def start(self, label):
+    def start(self, label, revert=True):
         """Starts a virtual machine.
         @param label: virtual machine name.
+        @param revert: revert the vm to its snapshot
         @raise CuckooMachineError: if unable to start virtual machine.
         """
         log.debug("Starting machine %s", label)
@@ -344,47 +348,57 @@ class LibVirtMachinery(Machinery):
 
         conn = self._connect()
 
-        vm_info = self.db.view_machine_by_label(label)
+        if revert:
+            vm_info = self.db.view_machine_by_label(label)
 
-        snapshot_list = self.vms[label].snapshotListNames(flags=0)
+            snapshot_list = self.vms[label].snapshotListNames(flags=0)
 
-        # If a snapshot is configured try to use it.
-        if vm_info.snapshot and vm_info.snapshot in snapshot_list:
-            # Revert to desired snapshot, if it exists.
-            log.debug("Using snapshot {0} for virtual machine "
-                      "{1}".format(vm_info.snapshot, label))
-            try:
-                vm = self.vms[label]
-                snapshot = vm.snapshotLookupByName(vm_info.snapshot, flags=0)
-                self.vms[label].revertToSnapshot(snapshot, flags=0)
-            except libvirt.libvirtError:
-                msg = "Unable to restore snapshot {0} on " \
-                      "virtual machine {1}".format(vm_info.snapshot, label)
-                raise CuckooMachineError(msg)
-            finally:
+            # If a snapshot is configured try to use it.
+            if vm_info.snapshot and vm_info.snapshot in snapshot_list:
+                # Revert to desired snapshot, if it exists.
+                log.debug("Using snapshot {0} for virtual machine "
+                          "{1}".format(vm_info.snapshot, label))
+                try:
+                    vm = self.vms[label]
+                    snapshot = vm.snapshotLookupByName(vm_info.snapshot, flags=0)
+                    self.vms[label].revertToSnapshot(snapshot, flags=0)
+                except libvirt.libvirtError:
+                    msg = "Unable to restore snapshot {0} on " \
+                          "virtual machine {1}".format(vm_info.snapshot, label)
+                    raise CuckooMachineError(msg)
+                finally:
+                    self._disconnect(conn)
+            elif self._get_snapshot(label):
+                snapshot = self._get_snapshot(label)
+                log.debug("Using snapshot {0} for virtual machine "
+                          "{1}".format(snapshot.getName(), label))
+                try:
+                    self.vms[label].revertToSnapshot(snapshot, flags=0)
+                except libvirt.libvirtError:
+                    raise CuckooMachineError("Unable to restore snapshot on "
+                                             "virtual machine {0}".format(label))
+                finally:
+                    self._disconnect(conn)
+            else:
                 self._disconnect(conn)
-        elif self._get_snapshot(label):
-            snapshot = self._get_snapshot(label)
-            log.debug("Using snapshot {0} for virtual machine "
-                      "{1}".format(snapshot.getName(), label))
-            try:
-                self.vms[label].revertToSnapshot(snapshot, flags=0)
-            except libvirt.libvirtError:
-                raise CuckooMachineError("Unable to restore snapshot on "
-                                         "virtual machine {0}".format(label))
-            finally:
-                self._disconnect(conn)
+                raise CuckooMachineError("No snapshot found for virtual machine "
+                                         "{0}".format(label))
         else:
-            self._disconnect(conn)
-            raise CuckooMachineError("No snapshot found for virtual machine "
-                                     "{0}".format(label))
+            try:
+                self.vms[label].create()
+            except libvirt.libvirtError as e:
+                raise CuckooMachineError("Error starting virtual machine without reverting "
+                        "{0}: {1}".format(label, e))
+            finally:
+                self._disconnect(conn)
 
         # Check state.
         self._wait_status(label, self.RUNNING)
 
-    def stop(self, label):
+    def stop(self, label, force=True):
         """Stops a virtual machine. Kill them all.
         @param label: virtual machine name.
+        @param force: poweroff instead of ACPI shutdown
         @raise CuckooMachineError: if unable to stop virtual machine.
         """
         log.debug("Stopping machine %s", label)
@@ -400,7 +414,16 @@ class LibVirtMachinery(Machinery):
                 log.debug("Trying to stop an already stopped machine %s. "
                           "Skip", label)
             else:
-                self.vms[label].destroy()  # Machete's way!
+                if force:
+                    self.vms[label].destroy()  # Machete's way!
+                else:
+                    # Destroy the vm if it takes more than 30 seconds to shutdown
+                    # The shutdown() api is blocking, that's why we need a thread
+                    # waiting for the timeout
+                    timer = threading.Timer(30, self.stop, {label})
+                    timer.start()
+                    self.vms[label].shutdown()
+                    timer.cancel()
         except libvirt.libvirtError as e:
             raise CuckooMachineError("Error stopping virtual machine "
                                      "{0}: {1}".format(label, e))
