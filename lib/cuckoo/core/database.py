@@ -41,6 +41,10 @@ TASK_UNSCHEDULED = "unscheduled"
 TASK_FAILED_ANALYSIS = "failed_analysis"
 TASK_FAILED_PROCESSING = "failed_processing"
 
+# Task type (single or recurrent)
+TASK_SINGLE = "single"
+TASK_RECURRENT = "recurrent"
+
 # Secondary table used in association Machine - Tag.
 machines_tags = Table(
     "machines_tags", Base.metadata,
@@ -250,6 +254,8 @@ class Task(Base):
     __tablename__ = "tasks"
 
     id = Column(Integer(), primary_key=True)
+    experiment = Column(Integer(), nullable=True)
+    repeat = Column(Enum(TASK_SINGLE, TASK_RECURRENT, name="repeat_type"), server_default=TASK_SINGLE, nullable=False)
     target = Column(Text(), nullable=False)
     category = Column(String(255), nullable=False)
     timeout = Column(Integer(), server_default="0", nullable=False)
@@ -727,7 +733,8 @@ class Database(object):
 
     def add(self, obj, timeout=0, package="", options="", priority=1,
             custom="", machine="", platform="", tags=None,
-            memory=False, enforce_timeout=False, clock=None):
+            memory=False, enforce_timeout=False, clock=None,
+            experiment=None, repeat=None, added_on=None, status=TASK_PENDING):
         """Add a task to database.
         @param obj: object to add (File or URL).
         @param timeout: selected timeout.
@@ -740,6 +747,7 @@ class Database(object):
         @param memory: toggle full memory dump.
         @param enforce_timeout: toggle full timeout execution.
         @param clock: virtual machine clock time
+        @param repeat: single or recurring analysis
         @return: cursor or None.
         """
         session = self.Session()
@@ -791,6 +799,10 @@ class Database(object):
         task.platform = platform
         task.memory = memory
         task.enforce_timeout = enforce_timeout
+        task.experiment = experiment
+        task.repeat = repeat
+        task.added_on = added_on
+        task.status = status
 
         # Deal with tags format (i.e., foo,bar,baz)
         if tags:
@@ -812,6 +824,11 @@ class Database(object):
         try:
             session.commit()
             task_id = task.id
+            # If no experiment is provided, this is the first task of the experiment
+            if not task.experiment:
+                task.experiment = task_id
+                session.merge(task)
+                session.commit()
         except SQLAlchemyError as e:
             log.debug("Database error adding task: {0}".format(e))
             session.rollback()
@@ -823,7 +840,8 @@ class Database(object):
 
     def add_path(self, file_path, timeout=0, package="", options="",
                  priority=1, custom="", machine="", platform="", tags=None,
-                 memory=False, enforce_timeout=False, clock=None):
+                 memory=False, enforce_timeout=False, clock=None,
+                 experiment=None, repeat=None, added_on=None, status=TASK_PENDING):
         """Add a task to database from file path.
         @param file_path: sample path.
         @param timeout: selected timeout.
@@ -850,11 +868,12 @@ class Database(object):
 
         return self.add(File(file_path), timeout, package, options, priority,
                         custom, machine, platform, tags, memory,
-                        enforce_timeout, clock)
+                        enforce_timeout, clock, experiment, repeat, added_on, status)
 
     def add_url(self, url, timeout=0, package="", options="", priority=1,
                 custom="", machine="", platform="", tags=None, memory=False,
-                enforce_timeout=False, clock=None):
+                enforce_timeout=False, clock=None, experiment=None, repeat=None,
+                added_on=None, status=TASK_PENDING):
         """Add a task to database from url.
         @param url: url.
         @param timeout: selected timeout.
@@ -878,7 +897,8 @@ class Database(object):
 
         return self.add(URL(url), timeout, package, options, priority,
                         custom, machine, platform, tags, memory,
-                        enforce_timeout, clock)
+                        enforce_timeout, clock, experiment, repeat, added_on,
+                        status)
 
     def reschedule(self, task_id):
         """Reschedule a task.
@@ -915,7 +935,8 @@ class Database(object):
 
         return add(task.target, task.timeout, task.package, task.options,
                    task.priority, task.custom, task.machine, task.platform,
-                   tags, task.memory, task.enforce_timeout, task.clock)
+                   tags, task.memory, task.enforce_timeout, task.clock,
+                   task.experiment, task.repeat, task.added_on)
 
     def list_tasks(self, limit=None, details=False, category=None,
                    offset=None, status=None, sample_id=None, not_status=None,
