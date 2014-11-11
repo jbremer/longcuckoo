@@ -453,6 +453,10 @@ def terminate(request, task_id):
             # Free the vm assigned to this experiment
             db.unlock_machine_by_experiment(task.experiment_id)
 
+    if len(db.list_tasks(experiment=task.experiment_id)) == 0:
+        # No tasks attached to this experiment, no need to keep the experiment
+        db.delete_experiment(task.experiment_id)
+
     return render_to_response("success.html",
         {"message": "Task terminated, thanks for all the fish."},
         context_instance=RequestContext(request))

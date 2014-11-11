@@ -1148,6 +1148,20 @@ class Database(object):
             session.close()
         return True
 
+    def delete_experiment(self, experiment_id):
+        session = self.Session()
+        try:
+            experiment = session.query(Experiment).get(experiment_id)
+            session.delete(experiment)
+            session.commit()
+        except SQLAlchemyError as e:
+            log.debug("Database error deleting experiment: {0}".format(e))
+            session.rollback()
+            return False
+        finally:
+            session.close()
+        return True
+
     def view_sample(self, sample_id):
         """Retrieve information on a sample given a sample id.
         @param sample_id: ID of the sample to query.
