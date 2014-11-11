@@ -18,7 +18,7 @@ from gridfs import GridFS
 
 sys.path.append(settings.CUCKOO_PATH)
 
-from lib.cuckoo.core.database import Database, TASK_PENDING
+from lib.cuckoo.core.database import Database, TASK_PENDING, TASK_SCHEDULED, TASK_UNSCHEDULED, TASK_RUNNING
 
 results_db = pymongo.connection.Connection(settings.MONGO_HOST, settings.MONGO_PORT).cuckoo
 fs = GridFS(results_db)
@@ -26,8 +26,8 @@ fs = GridFS(results_db)
 @require_safe
 def index(request):
     db = Database()
-    tasks_files = db.list_tasks(limit=50, category="file", not_status=TASK_PENDING)
-    tasks_urls = db.list_tasks(limit=50, category="url", not_status=TASK_PENDING)
+    tasks_files = db.list_tasks(limit=50, category="file", not_status=[TASK_PENDING,TASK_SCHEDULED,TASK_UNSCHEDULED])
+    tasks_urls = db.list_tasks(limit=50, category="url", not_status=[TASK_PENDING,TASK_SCHEDULED,TASK_UNSCHEDULED])
 
     analyses_files = []
     analyses_urls = []
@@ -57,7 +57,7 @@ def index(request):
 @require_safe
 def pending(request):
     db = Database()
-    tasks = db.list_tasks(status=TASK_PENDING)
+    tasks = db.list_tasks(status=[TASK_PENDING,TASK_SCHEDULED,TASK_UNSCHEDULED])
 
     pending = []
     for task in tasks:
