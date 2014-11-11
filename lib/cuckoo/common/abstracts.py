@@ -180,25 +180,26 @@ class Machinery(object):
         """
         return self.db.list_machines()
 
-    def availables(self):
+    def availables(self, locked_by=None):
         """How many machines are free.
         @return: free machines count.
         """
-        return self.db.count_machines_available()
+        return self.db.count_machines_available(locked_by)
 
-    def acquire(self, machine_id=None, platform=None, tags=None):
+    def acquire(self, machine_id=None, platform=None, tags=None, locked_by=None):
         """Acquire a machine to start analysis.
         @param machine_id: machine ID.
         @param platform: machine platform.
         @param tags: machine tags
         @return: machine or None.
         """
+
         if machine_id:
-            return self.db.lock_machine(name=machine_id)
+            return self.db.lock_machine(name=machine_id, locked_by=locked_by)
         elif platform:
-            return self.db.lock_machine(platform=platform, tags=tags)
+            return self.db.lock_machine(platform=platform, tags=tags, locked_by=locked_by)
         else:
-            return self.db.lock_machine(tags=tags)
+            return self.db.lock_machine(tags=tags, locked_by=locked_by)
 
     def release(self, label=None):
         """Release a machine.

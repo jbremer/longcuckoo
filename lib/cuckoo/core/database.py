@@ -17,7 +17,7 @@ from lib.cuckoo.common.objects import File, URL
 from lib.cuckoo.common.utils import create_folder, Singleton, classlock
 
 try:
-    from sqlalchemy import create_engine, Column
+    from sqlalchemy import create_engine, Column, or_
     from sqlalchemy import Integer, String, Boolean, DateTime, Enum
     from sqlalchemy import ForeignKey, Text, Index, Table
     from sqlalchemy.ext.declarative import declarative_base
@@ -73,7 +73,7 @@ class Machine(Base):
                         single_parent=True, backref=backref("machine", cascade="all"))
     interface = Column(String(255), nullable=True)
     snapshot = Column(String(255), nullable=True)
-    locked = Column(Boolean(), nullable=False, default=False)
+    locked_by = Column(Integer(), nullable=True, default=None)
     locked_changed_on = Column(DateTime(timezone=False), nullable=True)
     status = Column(String(255), nullable=True)
     status_changed_on = Column(DateTime(timezone=False), nullable=True)
@@ -622,7 +622,7 @@ class Database(object):
         session = self.Session()
         try:
             if locked:
-                machines = session.query(Machine).options(joinedload("tags")).filter_by(locked=True).all()
+                machines = session.query(Machine).options(joinedload("tags")).filter(Machine.locked_by!=None).all()
             else:
                 machines = session.query(Machine).options(joinedload("tags")).all()
         except SQLAlchemyError as e:
@@ -633,99 +633,102 @@ class Database(object):
         return machines
 
     @classlock
-    def lock_machine(self, name=None, platform=None, tags=None):
-        """Places a lock on a free virtual machine.
-        @param name: optional virtual machine name
-        @param platform: optional virtual machine platform
-        @param tags: optional tags required (list)
-        @return: locked machine
-        """
-        session = self.Session()
+    def lock_machine(self, name=None, platform=None, tags=None, locked_by=None):
+    """Places a lock on a free virtual machine.
+    @param name: optional virtual machine name
+    @param platform: optional virtual machine platform
+    @param tags: optional tags required (list)
+    @return: locked machine
+    """
+    session = self.Session()
 
-        # Preventive checks.
-        if name and platform:
-            # Wrong usage.
-            log.error("You can select machine only by name or by platform.")
-            return None
-        elif name and tags:
-            # Also wrong usage.
-            log.error("You can select machine only by name or by tags.")
-            return None
+    # Preventive checks.
+    if name and platform:
+        # Wrong usage.
+        log.error("You can select machine only by name or by platform.")
+        return None
+    elif name and tags:
+        # Also wrong usage.
+        log.error("You can select machine only by name or by tags.")
+        return None
 
+    try:
+        machines = session.query(Machine)
+        if name:
+            machines = machines.filter_by(name=name)
+        if platform:
+            machines = machines.filter_by(platform=platform)
+        if tags:
+            for tag in tags:
+                machines = machines.filter(Machine.tags.any(name=tag.name))
+
+        # Check if there are any machines that satisfy the
+        # selection requirements.
+        if not machines.count():
+            raise CuckooOperationalError("No machines match selection criteria.")
+
+        # Get the machine already reserved by the experiment
+        machine = machines.filter_by(locked_by=locked_by).first()
+        if not machine:
+            # Get a free machine
+            machine = machines.filter_by(locked_by=None).first()
+    except SQLAlchemyError as e:
+        log.debug("Database error locking machine: {0}".format(e))
+        session.close()
+        return None
+
+    if machine:
+        machine.locked_by = locked_by
+        machine.locked_changed_on = datetime.now()
         try:
-            machines = session.query(Machine)
-            if name:
-                machines = machines.filter_by(name=name)
-            if platform:
-                machines = machines.filter_by(platform=platform)
-            if tags:
-                for tag in tags:
-                    machines = machines.filter(Machine.tags.any(name=tag.name))
-
-            # Check if there are any machines that satisfy the
-            # selection requirements.
-            if not machines.count():
-                raise CuckooOperationalError("No machines match selection criteria.")
-
-            # Get the first free machine.
-            machine = machines.filter_by(locked=False).first()
+            session.commit()
+            session.refresh(machine)
         except SQLAlchemyError as e:
             log.debug("Database error locking machine: {0}".format(e))
-            session.close()
+            session.rollback()
             return None
+        finally:
+            session.close()
 
-        if machine:
-            machine.locked = True
-            machine.locked_changed_on = datetime.now()
-            try:
-                session.commit()
-                session.refresh(machine)
-            except SQLAlchemyError as e:
-                log.debug("Database error locking machine: {0}".format(e))
-                session.rollback()
-                return None
-            finally:
-                session.close()
+    return machine
 
-        return machine
+@classlock
+def unlock_machine(self, label):
+    """Remove lock form a virtual machine.
+    @param label: virtual machine label
+    @return: unlocked machine
+    """
+    session = self.Session()
+    try:
+        machine = session.query(Machine).filter_by(label=label).first()
+    except SQLAlchemyError as e:
+        log.debug("Database error unlocking machine: {0}".format(e))
+        session.close()
+        return None
 
-    @classlock
-    def unlock_machine(self, label):
-        """Remove lock form a virtual machine.
-        @param label: virtual machine label
-        @return: unlocked machine
-        """
-        session = self.Session()
+    if machine:
+        machine.locked_by = None
+        machine.locked_changed_on = datetime.now()
         try:
-            machine = session.query(Machine).filter_by(label=label).first()
+            session.commit()
+            session.refresh(machine)
         except SQLAlchemyError as e:
-            log.debug("Database error unlocking machine: {0}".format(e))
-            session.close()
+            log.debug("Database error locking machine: {0}".format(e))
+            session.rollback()
             return None
+        finally:
+            session.close()
 
-        if machine:
-            machine.locked = False
-            machine.locked_changed_on = datetime.now()
-            try:
-                session.commit()
-                session.refresh(machine)
-            except SQLAlchemyError as e:
-                log.debug("Database error locking machine: {0}".format(e))
-                session.rollback()
-                return None
-            finally:
-                session.close()
-
-        return machine
+    return machine
 
     @classlock
-    def count_machines_available(self):
+    def count_machines_available(self, locked_by=None):
         """How many virtual machines are ready for analysis.
         @return: free virtual machines count
         """
         session = self.Session()
         try:
-            machines_count = session.query(Machine).filter_by(locked=False).count()
+            machines_count = session.query(Machine).filter(or_(Machine.locked_by==locked_by, Machine.locked_by==None)).count()
         except SQLAlchemyError as e:
             log.debug("Database error counting machines: {0}".format(e))
             return 0
