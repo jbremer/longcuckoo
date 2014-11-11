@@ -25,7 +25,8 @@ def force_int(value):
 def index(request):
     if request.method == "POST":
         package = request.POST.get("package", "")
-        timeout = force_int(request.POST.get("timeout"))
+        # Timeout is in minute, but we handle seconds in the backend
+        timeout = force_int(request.POST.get("timeout")) * 60
         options = request.POST.get("options", "")
         priority = force_int(request.POST.get("priority"))
         machine = request.POST.get("machine", "")
