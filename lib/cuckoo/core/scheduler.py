@@ -142,7 +142,7 @@ class AnalysisManager(Thread):
             # In some cases it's possible that we enter this loop without
             # having any available machines. We should make sure this is not
             # such case, or the analysis task will fail completely.
-            if not machinery.availables():
+            if not machinery.availables(locked_by=self.task.experiment):
                 machine_lock.release()
                 time.sleep(1)
                 continue
@@ -152,7 +152,8 @@ class AnalysisManager(Thread):
             try:
                 machine = machinery.acquire(machine_id=self.task.machine,
                                             platform=self.task.platform,
-                                            tags=self.task.tags)
+                                            tags=self.task.tags,
+                                            locked_by=self.task.experiment)
             finally:
                 machine_lock.release()
 

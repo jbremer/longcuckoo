@@ -16,7 +16,7 @@ from lib.cuckoo.common.objects import File, URL
 from lib.cuckoo.common.utils import create_folder, Singleton
 
 try:
-    from sqlalchemy import create_engine, Column
+    from sqlalchemy import create_engine, Column, or_
     from sqlalchemy import Integer, String, Boolean, DateTime, Enum
     from sqlalchemy import ForeignKey, Text, Index, Table
     from sqlalchemy.ext.declarative import declarative_base
@@ -72,7 +72,7 @@ class Machine(Base):
                         single_parent=True, backref=backref("machine", cascade="all"))
     interface = Column(String(255), nullable=True)
     snapshot = Column(String(255), nullable=True)
-    locked = Column(Boolean(), nullable=False, default=False)
+    locked_by = Column(Integer(), nullable=True, default=None)
     locked_changed_on = Column(DateTime(timezone=False), nullable=True)
     status = Column(String(255), nullable=True)
     status_changed_on = Column(DateTime(timezone=False), nullable=True)
@@ -578,7 +578,7 @@ class Database(object):
         session = self.Session()
         try:
             if locked:
-                machines = session.query(Machine).options(joinedload("tags")).filter_by(locked=True).all()
+                machines = session.query(Machine).options(joinedload("tags")).filter(Machine.locked_by!=None).all()
             else:
                 machines = session.query(Machine).options(joinedload("tags")).all()
         except SQLAlchemyError as e:
@@ -588,7 +588,7 @@ class Database(object):
             session.close()
         return machines
 
-    def lock_machine(self, name=None, platform=None, tags=None):
+    def lock_machine(self, name=None, platform=None, tags=None, locked_by=None):
         """Places a lock on a free virtual machine.
         @param name: optional virtual machine name
         @param platform: optional virtual machine platform
@@ -622,15 +622,18 @@ class Database(object):
             if not machines.count():
                 raise CuckooOperationalError("No machines match selection criteria.")
 
-            # Get the first free machine.
-            machine = machines.filter_by(locked=False).first()
+            # Get the machine already reserved by the experiment
+            machine = machines.filter_by(locked_by=locked_by).first()
+            if not machine:
+                # Get a free machine
+                machine = machines.filter_by(locked_by=None).first()
         except SQLAlchemyError as e:
             log.debug("Database error locking machine: {0}".format(e))
             session.close()
             return None
 
         if machine:
-            machine.locked = True
+            machine.locked_by = locked_by
             machine.locked_changed_on = datetime.now()
             try:
                 session.commit()
@@ -658,7 +661,7 @@ class Database(object):
             return None
 
         if machine:
-            machine.locked = False
+            machine.locked_by = None
             machine.locked_changed_on = datetime.now()
             try:
                 session.commit()
@@ -672,13 +675,13 @@ class Database(object):
 
         return machine
 
-    def count_machines_available(self):
+    def count_machines_available(self, locked_by=None):
         """How many virtual machines are ready for analysis.
         @return: free virtual machines count
         """
         session = self.Session()
         try:
-            machines_count = session.query(Machine).filter_by(locked=False).count()
+            machines_count = session.query(Machine).filter(or_(Machine.locked_by==locked_by, Machine.locked_by==None)).count()
         except SQLAlchemyError as e:
             log.debug("Database error counting machines: {0}".format(e))
             return 0
