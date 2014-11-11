@@ -985,7 +985,7 @@ class Database(object):
 
     def list_tasks(self, limit=None, details=False, category=None,
                    offset=None, status=None, sample_id=None, not_status=None,
-                   completed_after=None, order_by=None):
+                   experiment=None, completed_after=None, order_by=None):
         """Retrieve list of task.
         @param limit: specify a limit of entries.
         @param details: if details about must be included
@@ -1003,13 +1003,15 @@ class Database(object):
             search = session.query(Task)
 
             if status:
-                search = search.filter_by(status=status)
+                search = search.filter_by(status.in_(status))
             if not_status:
-                search = search.filter(Task.status != not_status)
+                search = search.filter(~Task.status.in_(not_status))
             if category:
                 search = search.filter_by(category=category)
             if details:
                 search = search.options(joinedload("guest"), joinedload("errors"), joinedload("tags"))
+            if experiment:
+                search = search.filter(Task.experiment == experiment)
             if sample_id is not None:
                 search = search.filter_by(sample_id=sample_id)
             if completed_after:
