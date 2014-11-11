@@ -679,6 +679,34 @@ class Database(object):
 
         return machine
 
+    def unlock_machine_by_experiment(self, experiment):
+        """Remove lock form a virtual machine.
+        @param label: virtual machine label
+        @return: unlocked machine
+        """
+        session = self.Session()
+        try:
+            machine = session.query(Machine).filter(Machine.locked_by == experiment).first()
+        except SQLAlchemyError as e:
+            log.debug("Database error unlocking machine: {0}".format(e))
+            session.close()
+            return None
+
+        if machine:
+            machine.locked_by = None
+            machine.locked_changed_on = datetime.now()
+            try:
+                session.commit()
+                session.refresh(machine)
+            except SQLAlchemyError as e:
+                log.debug("Database error locking machine: {0}".format(e))
+                session.rollback()
+                return None
+            finally:
+                session.close()
+
+        return machine
+
     def count_machines_available(self, locked_by=None):
         """How many virtual machines are ready for analysis.
         @return: free virtual machines count
@@ -906,6 +934,16 @@ class Database(object):
                         custom, machine, platform, tags, memory,
                         enforce_timeout, clock, experiment, repeat, added_on,
                         status)
+
+    def start_task(self, task_id):
+        session = self.Session()
+        task = session.query(Task).get(task_id)
+
+        if task.status in (TASK_SCHEDULED, TASK_UNSCHEDULED):
+            task.added_on = datetime.now()
+            session.commit()
+
+        session.close()
 
     def reschedule(self, task_id):
         """Reschedule a task.
