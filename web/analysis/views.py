@@ -405,3 +405,52 @@ def remove(request, task_id):
     return render_to_response("success.html",
                               {"message": "Task deleted, thanks for all the fish."},
                               context_instance=RequestContext(request))
+
+def start(request, task_id):
+    db = Database()
+    db.start_task(task_id)
+
+    return render_to_response("success.html",
+            {"message": "Task scheduled for NOW, thanks for all the fish."},
+            context_instance=RequestContext(request))
+
+def schedule(request, task_id):
+    db = Database()
+    task = db.view_task(task_id)
+    if task.status == TASK_UNSCHEDULED:
+        db.set_status(task_id, TASK_SCHEDULED)
+
+    return render_to_response("success.html",
+            {"message": "Task unscheduled, thanks for all the fish."},
+            context_instance=RequestContext(request))
+
+def unschedule(request, task_id):
+    db = Database()
+    task = db.view_task(task_id)
+    if task.status == TASK_SCHEDULED:
+        db.set_status(task_id, TASK_UNSCHEDULED)
+
+    return render_to_response("success.html",
+            {"message": "Task unscheduled, thanks for all the fish."},
+            context_instance=RequestContext(request))
+
+def terminate(request, task_id):
+    db = Database()
+
+    task = db.view_task(task_id)
+    db.delete_task(task_id)
+
+    if task.status != TASK_PENDING:
+        task_running = db.list_tasks(experiment=task.experiment_id, status=TASK_RUNNING)
+
+        if task_running:
+            # Ask the task to free the vm once done
+            task_running.repeat = TASK_SINGLE
+        else:
+            # Free the vm assigned to this experiment
+            db.unlock_machine_by_experiment(task.experiment_id)
+
+    return render_to_response("success.html",
+        {"message": "Task terminated, thanks for all the fish."},
+        context_instance=RequestContext(request))
+

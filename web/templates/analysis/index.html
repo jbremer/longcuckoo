@@ -21,6 +21,7 @@
                     <th>Filename</th>
                     <th>MD5</th>
                     <th>Status</th>
+                    <th>Action</th>
                 </tr>
                 </thead>
                 <tbody>
@@ -61,6 +62,13 @@
                             {% else %}
                                 <span class="text-danger">{{analysis.status}}</span>
                             {% endif %}
+                        </td>
+                        <td>
+                            <div class="btn-group">
+                                {% if analysis.status != "completed" and analysis.status != "reported" %}
+                                    <a href="#" class="btn btn-danger">Stop</a>
+                                {% endif %}
+                            </div>
                         </td>
                     </tr>
                 {% endfor %}
