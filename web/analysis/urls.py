@@ -12,6 +12,8 @@ urlpatterns = patterns("",
     url(r"^filtered/(?P<task_id>\d+)/(?P<pid>\d+)/(?P<category>\w+)/$", "analysis.views.filtered_chunk"),
     url(r"^search/$", "analysis.views.search"),
     url(r"^pending/$", "analysis.views.pending"),
+    url(r"^experiment/$", "analysis.views.experiment"),
+    url(r"^experiment/(?P<experiment_id>\d+)/$", "analysis.views.experiment"),
     # Support for recurrent analysis
     url(r"^schedule/(?P<task_id>\d+)/$", "analysis.views.schedule"),
     url(r"^unschedule/(?P<task_id>\d+)/$", "analysis.views.unschedule"),
