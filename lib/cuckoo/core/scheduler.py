@@ -8,6 +8,7 @@ import shutil
 import logging
 import Queue
 from threading import Thread, Lock
+from datetime import timedelta
 
 from lib.cuckoo.common.config import Config
 from lib.cuckoo.common.constants import CUCKOO_ROOT
@@ -245,15 +246,16 @@ class AnalysisManager(Thread):
                                                self.machine.name,
                                                self.machine.label,
                                                machinery.__class__.__name__)
-            # Start the machine.
-            machinery.start(self.machine.label)
+            # Start the machine, revert only if we are the first task in the experiment
+            machinery.start(self.machine.label, revert=(self.task.id == self.task.experiment))
 
             # Initialize the guest manager.
             guest = GuestManager(self.machine.name, self.machine.ip,
                                  self.machine.platform)
 
-            # Start the analysis.
-            guest.start_analysis(options)
+            # Start the analysis if we are the first task of a series
+            if self.task.id == self.task.experiment:
+                guest.start_analysis(options)
 
             guest.wait_for_completion()
             succeeded = True
@@ -311,7 +313,9 @@ class AnalysisManager(Thread):
             try:
                 # Release the analysis machine. But only if the machine has
                 # not turned dead yet.
-                machinery.release(self.machine.label)
+                if self.task.repeat == TASK_SINGLE:
+                    log.debug("Freeing the machine since we're the last task of this experiment")
+                    machinery.release(self.machine.label)
             except CuckooMachineError as e:
                 log.error("Unable to release machine %s, reason %s. "
                           "You might need to restore it manually.",
@@ -539,11 +543,22 @@ class Scheduler:
 
                 if task:
                     log.debug("Processing task #%s", task.id)
+
+                    if task.repeat == TASK_RECURRENT:
+                        # Schedule a new task
+                        add = self.db.add_path if task.category == "file" else self.db.add_url
+                        add(task.target, task.timeout, task.package, task.options,
+                                task.priority, task.custom, task.machine, task.platform,
+                                task.tags, task.memory, task.enforce_timeout, task.clock,
+                                task.experiment, task.repeat, task.added_on+timedelta(days=1),
+                                status=TASK_SCHEDULED)
+
                     self.total_analysis_count += 1
 
                     # Initialize and start the analysis manager.
                     analysis = AnalysisManager(task, errors)
                     analysis.start()
+                    task = None
 
             # Deal with errors.
             try:

@@ -21,7 +21,7 @@ try:
     from sqlalchemy import ForeignKey, Text, Index, Table
     from sqlalchemy.ext.declarative import declarative_base
     from sqlalchemy.exc import SQLAlchemyError, IntegrityError
-    from sqlalchemy.orm import sessionmaker, relationship, joinedload, backref
+    from sqlalchemy.orm import sessionmaker, relationship, joinedload, backref, aliased
     from sqlalchemy.pool import NullPool
     Base = declarative_base()
 except ImportError:
@@ -502,7 +502,11 @@ class Database(object):
         row = None
 
         try:
-            row = session.query(Task).filter(Task.status == status).filter(Task.added_on <= datetime.now()).order_by("priority desc, added_on").first()
+            task1 = aliased(Task)
+            task2 = aliased(Task)
+
+            subquery = session.query(Task.experiment).filter(task1.experiment == task2.experiment).filter(task2.status == TASK_RUNNING)
+            row = session.query(Task).filter(Task.status == status).filter(Task.added_on <= datetime.now()).order_by("priority desc, added_on").filter(~Task.experiment.in_(subquery)).first()
 
             if not row:
                 return None
