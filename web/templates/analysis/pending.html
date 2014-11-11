@@ -25,11 +25,11 @@
                 <td>{{ task.id }}</td>
                 <td><a href="{% url "analysis.views.experiment" task.experiment %}">{{ task.experiment }} - {{ task.target }}</a></td>
                 <td>
-                {% if task.status == "reported" %}
-                    {{task.completed_on}}
-                {% else %}
-                    <span class="muted">{{task.added_on}} (added on)</span>
-                {% endif %}
+                    {% if task.status == "reported" %}
+                        {{task.completed_on}}
+                    {% else %}
+                    <span class="muted">Scheduled in <strong>{{task.added_on|timeuntil}}</strong> ({{ task.added_on|date:"d b, H:m" }})</span>
+                    {% endif %}
                 </td>
                 <td>{{task.category}}</td>
                 <td>{{task.target}}</td>
