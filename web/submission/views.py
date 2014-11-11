@@ -35,6 +35,7 @@ def index(request):
         enforce_timeout = bool(request.POST.get("enforce_timeout", False))
         tags = request.POST.get("tags", None)
         recurring = request.POST.get("recurring", None)
+        experiment_name = request.POST.get("experiment_name", "")
 
         if request.POST.get("free"):
             if options:
@@ -87,6 +88,7 @@ def index(request):
                                           memory=memory,
                                           enforce_timeout=enforce_timeout,
                                           tags=tags,
+                                          name=experiment_name,
                                           repeat=recurring)
                     if task_id:
                         task_ids.append(task_id)
@@ -107,7 +109,8 @@ def index(request):
                                      custom=custom,
                                      memory=memory,
                                      enforce_timeout=enforce_timeout,
-                                     tags=tags)
+                                     tags=tags,
+                                     name=experiment_name)
                 if task_id:
                     task_ids.append(task_id)
 

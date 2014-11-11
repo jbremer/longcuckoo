@@ -57,6 +57,8 @@ def index(request):
             if db.view_errors(task.id):
                 new["errors"] = True
 
+            new["experiment"] = task.experiment
+
             analyses_files.append(new)
 
     if tasks_urls:
@@ -65,6 +67,8 @@ def index(request):
 
             if db.view_errors(task.id):
                 new["errors"] = True
+
+            new["experiment"] = task.experiment
 
             analyses_urls.append(new)
 
@@ -101,6 +105,8 @@ def experiment(request, experiment_id=None):
                 if db.view_errors(task.id):
                     new["errors"] = True
 
+                new["experiment"] = task.experiment
+
                 analyses_files.append(new)
 
         return render_to_response("analysis/index.html",
@@ -109,17 +115,12 @@ def experiment(request, experiment_id=None):
     else:
         # List all experiments
         experiments = db.list_experiments()
-        analyses = []
 
-        if experiments:
-            for experiment in experiments:
-                exp = experiment.to_dict()
-                exp["timeout"] = time.strftime('%H:%M:%S', time.gmtime(exp["timeout"]))
-                exp["target"] = os.path.basename(exp["target"])
-                analyses.append(exp)
+        for experiment in experiments:
+            experiment.last_task.timeout = datetime.timedelta(seconds=experiment.last_task.timeout).__str__()
 
         return render_to_response("analysis/experiment.html",
-                {"tasks": analyses},
+                {"experiments": experiments},
                 context_instance=RequestContext(request))
 
 @require_safe
@@ -128,11 +129,14 @@ def pending(request):
     tasks = db.list_tasks(status=[TASK_PENDING,TASK_SCHEDULED,TASK_UNSCHEDULED])
 
     pending = []
-    for task in tasks:
-        pending_task = task.to_dict()
-        pending_task["target"] = os.path.basename(pending_task["target"])
-        pending_task["added_on"] = datetime.datetime.strptime(pending_task["added_on"], "%Y-%m-%d %H:%M:%S")
-        pending.append(pending_task)
+    if tasks:
+        for task in tasks:
+            pending_task = task.to_dict()
+            pending_task["target"] = os.path.basename(pending_task["target"])
+            pending_task["added_on"] = datetime.datetime.strptime(pending_task["added_on"], "%Y-%m-%d %H:%M:%S")
+            pending_task["experiment"] = task.experiment
+
+            pending.append(pending_task)
 
     return render_to_response("analysis/pending.html",
                               {"tasks": pending},

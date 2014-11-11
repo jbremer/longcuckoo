@@ -23,7 +23,7 @@
         {% for task in tasks %}
             <tr>
                 <td>{{ task.id }}</td>
-                <td><a href="{% url "analysis.views.experiment" task.experiment %}">{{ task.experiment }} - {{ task.target }}</a></td>
+                <td><a href="{% url "analysis.views.experiment" task.experiment.id %}">{{ task.experiment.id }} - {{ task.experiment.name }}</a></td>
                 <td>
                     {% if task.status == "reported" %}
                         {{task.completed_on}}
