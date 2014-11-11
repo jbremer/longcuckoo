@@ -16,7 +16,7 @@ from lib.cuckoo.common.exceptions import CuckooOperationalError
 from lib.cuckoo.common.exceptions import CuckooCriticalError
 from lib.cuckoo.common.objects import File
 from lib.cuckoo.common.utils import create_folder
-from lib.cuckoo.core.database import Database, TASK_COMPLETED, TASK_REPORTED
+from lib.cuckoo.core.database import Database, TASK_PENDING, TASK_COMPLETED, TASK_REPORTED, TASK_SCHEDULED, TASK_SINGLE, TASK_RECURRENT
 from lib.cuckoo.core.guest import GuestManager
 from lib.cuckoo.core.plugins import list_plugins, RunAuxiliary, RunProcessing
 from lib.cuckoo.core.plugins import RunSignatures, RunReporting
@@ -521,22 +521,20 @@ class Scheduler:
                 if len(machinery.running()) >= self.cfg.cuckoo.max_machines_count:
                     continue
 
-            # If no machines are available, it's pointless to fetch for
-            # pending tasks. Loop over.
-            if not machinery.availables():
-                continue
-
             # Exits if max_analysis_count is defined in the configuration
             # file and has been reached.
             if self.maxcount and self.total_analysis_count >= self.maxcount:
                 if active_analysis_count <= 0:
                     self.stop()
             else:
-                # Fetch a pending analysis task.
-                #TODO: this fixes only submissions by --machine, need to add other attributes (tags etc.)
-                for machine in self.db.get_available_machines():
+                if machinery.availables():
+                    # Machines available, get the next task
+                    # lock the machine, and run the analysis.
+                    task = self.db.fetch(status=TASK_PENDING)
 
-                    task = self.db.fetch(machine=machine.name)
+                if not task:
+                    # No pending task available, simply run scheduled task
+                    task = self.db.fetch(status=TASK_SCHEDULED)
                     if task:
                         log.debug("Processing task #%s", task.id)
                         self.total_analysis_count += 1

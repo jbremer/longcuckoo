@@ -37,6 +37,8 @@ TASK_RUNNING = "running"
 TASK_COMPLETED = "completed"
 TASK_RECOVERED = "recovered"
 TASK_REPORTED = "reported"
+TASK_SCHEDULED = "scheduled"
+TASK_UNSCHEDULED = "unscheduled"
 TASK_FAILED_ANALYSIS = "failed_analysis"
 TASK_FAILED_PROCESSING = "failed_processing"
 
@@ -272,7 +274,8 @@ class Task(Base):
     started_on = Column(DateTime(timezone=False), nullable=True)
     completed_on = Column(DateTime(timezone=False), nullable=True)
     status = Column(Enum(TASK_PENDING, TASK_RUNNING, TASK_COMPLETED,
-                         TASK_REPORTED, TASK_RECOVERED, name="status_type"),
+                         TASK_REPORTED, TASK_RECOVERED, TASK_SCHEDULED,
+                         TASK_UNSCHEDULED, name="status_type"),
                     server_default=TASK_PENDING,
                     nullable=False)
     sample_id = Column(Integer, ForeignKey("samples.id"), nullable=True)
@@ -496,7 +499,7 @@ class Database(object):
             log.debug("Database error adding machine: {0}".format(e))
             session.rollback()
         finally:
-            session.close()        
+            session.close()
 
     @classlock
     def set_status(self, task_id, status):
@@ -523,7 +526,7 @@ class Database(object):
             session.close()
 
     @classlock
-    def fetch(self, lock=True, machine=""):
+    def fetch(self, lock=True, machine="", status=TASK_PENDING):
         """Fetches a task waiting to be processed and locks it for running.
         @return: None or task
         """
@@ -531,9 +534,9 @@ class Database(object):
         row = None
         try:
             if machine != "":
-                row = session.query(Task).filter_by(status=TASK_PENDING).filter(Machine.name==machine).order_by("priority desc, added_on").first()
+                row = session.query(Task).filter_by(Task.status == status).filter(Machine.name==machine).order_by("priority desc, added_on").first()
             else:
-                row = session.query(Task).filter_by(status=TASK_PENDING).order_by("priority desc, added_on").first()
+                row = session.query(Task).filter_by(Task.status == status).order_by("priority desc, added_on").first()
 
             if not row:
                 return None
