@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block content %}
+<p style="margin-bottom: 10px;"><img src="{{ STATIC_URL }}graphic/cuckoo.png" /></p>
+
+<div class="panel panel-primary">
+    <div class="panel-heading">
+        <h3 class="panel-title">Experiment</h3>
+    </div>
+    {% if experiments %}
+    <table class="table table-striped">
+        <thead>
+        <tr>
+            <th>Name</th>
+            <th>Submitted on</th>
+            <th>Duration</th>
+            <th>Status</th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for e in experiments %}
+            <tr>
+                <td><a href="{% url "analysis.views.experiment" e.id %}">{{ e.id }} - {{ e.name }}</a></td>
+                <td>{{ e.added_on }}</td>
+                <td>{{ e.last_task.timeout }}</td>
+                <td>
+                    {% if e.last_task.status == "pending" %}
+                        <span class="text-muted">pending</span>
+                    {% elif e.last_task.status == "running" %}
+                        <span class="text-warning">running</span>
+                    {% elif e.last_task.status == "completed" %}
+                        <span class="text-info">completed</span>
+                    {% elif e.last_task.status == "reported" %}
+                        <span class="text-success">reported</span>
+                    {% else %}
+                        <span class="text-danger">{{e.last_task.status}}</span>
+                    {% endif %}
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="panel-body">No experiment.</div>
+    {% endif %}
+        </div>
+{% endblock %}
