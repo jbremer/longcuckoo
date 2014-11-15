@@ -41,7 +41,7 @@ class VirtualBox(Machinery):
         # Base checks.
         super(VirtualBox, self)._initialize_check()
 
-    def start(self, label):
+    def start(self, label, revert=True):
         """Start a virtual machine.
         @param label: virtual machine name.
         @raise CuckooMachineError: if unable to start.
@@ -52,37 +52,40 @@ class VirtualBox(Machinery):
             raise CuckooMachineError("Trying to start an already "
                                      "started vm %s" % label)
 
-        vm_info = self.db.view_machine_by_label(label)
-        virtualbox_args = [self.options.virtualbox.path, "snapshot", label]
-        if vm_info.snapshot:
-            log.debug("Using snapshot {0} for virtual machine "
-                      "{1}".format(vm_info.snapshot, label))
-            virtualbox_args.extend(["restore", vm_info.snapshot])
-        else:
-            log.debug("Using current snapshot for virtual machine "
-                      "{0}".format(label))
-            virtualbox_args.extend(["restorecurrent"])
+        if revert:
+            vm_info = self.db.view_machine_by_label(label)
+            virtualbox_args = [self.options.virtualbox.path, "snapshot", label]
+            if vm_info.snapshot:
+                log.debug("Using snapshot {0} for virtual machine "
+                          "{1}".format(vm_info.snapshot, label))
+                virtualbox_args.extend(["restore", vm_info.snapshot])
+            else:
+                log.debug("Using current snapshot for virtual machine "
+                          "{0}".format(label))
+                virtualbox_args.extend(["restorecurrent"])
+
+            try:
+                if subprocess.call(virtualbox_args,
+                                   stdout=subprocess.PIPE,
+                                   stderr=subprocess.PIPE):
+                    raise CuckooMachineError("VBoxManage exited with error "
+                                             "restoring the machine's snapshot")
+            except OSError as e:
+                raise CuckooMachineError("VBoxManage failed restoring the "
+                                         "machine: %s" % e)
+
+            self._wait_status(label, self.SAVED)
 
         try:
-            if subprocess.call(virtualbox_args,
-                               stdout=subprocess.PIPE,
-                               stderr=subprocess.PIPE):
-                raise CuckooMachineError("VBoxManage exited with error "
-                                         "restoring the machine's snapshot")
-        except OSError as e:
-            raise CuckooMachineError("VBoxManage failed restoring the "
-                                     "machine: %s" % e)
+            args = [
+                self.options.virtualbox.path,
+                "startvm", label,
+                "--type", self.options.virtualbox.mode
+            ]
 
-        self._wait_status(label, self.SAVED)
-
-        try:
-            proc = subprocess.Popen([self.options.virtualbox.path,
-                             "startvm",
-                             label,
-                             "--type",
-                             self.options.virtualbox.mode],
-                            stdout=subprocess.PIPE,
-                            stderr=subprocess.PIPE)
+            proc = subprocess.Popen(args,
+                                    stdout=subprocess.PIPE,
+                                    stderr=subprocess.PIPE)
             output, err = proc.communicate()
             if err:
                 raise OSError(err)
