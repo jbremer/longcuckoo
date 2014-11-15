@@ -350,12 +350,12 @@ class Database(object):
         @param schema_check: disable or enable the db schema version check
         """
         self._lock = threading.RLock()
-        cfg = Config()
+        self.cfg = Config()
 
         if dsn:
             self._connect_database(dsn)
-        elif cfg.database.connection:
-            self._connect_database(cfg.database.connection)
+        elif self.cfg.database.connection:
+            self._connect_database(self.cfg.database.connection)
         else:
             db_file = os.path.join(CUCKOO_ROOT, "db", "cuckoo.db")
             if not os.path.exists(db_file):
@@ -1138,7 +1138,7 @@ class Database(object):
             search = session.query(Task)
 
             if status:
-                search = search.filter_by(status.in_(status))
+                search = search.filter(Task.status.in_(status))
             if not_status:
                 search = search.filter(~Task.status.in_(not_status))
             if category:
