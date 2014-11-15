@@ -424,7 +424,7 @@ def schedule(request, task_id):
         db.set_status(task_id, TASK_SCHEDULED)
 
     return render_to_response("success.html",
-            {"message": "Task unscheduled, thanks for all the fish."},
+            {"message": "Task scheduled, thanks for all the fish."},
             context_instance=RequestContext(request))
 
 def unschedule(request, task_id):
