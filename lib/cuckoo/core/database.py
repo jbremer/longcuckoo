@@ -1083,24 +1083,33 @@ class Database(object):
                    task.priority, task.custom, task.machine, task.platform,
                    tags, task.memory, task.enforce_timeout, task.clock)
 
-    def schedule(self, task_id):
+    def schedule(self, task_id, delta=None, timeout=None):
         session = self.Session()
 
         task = self.view_task(task_id)
-
         if not task:
             return None
 
         try:
             make_transient(task)
             task.id = None
-            task.added_on = task.added_on + timedelta(days=1)
             task.status = TASK_SCHEDULED
             task.started_on = None
             task.completed_on = None
 
+            if delta is None:
+                # By default schedule the next day at the same time.
+                task.added_on = task.added_on + timedelta(days=1)
+            else:
+                # But also allow scheduling X seconds after the original task.
+                task.added_on = task.added_on + timedelta(seconds=delta)
+
+            if timeout is not None:
+                task.timeout = timeout
+
             session.add(task)
             session.commit()
+            session.refresh(task)
         except SQLAlchemyError as e:
             log.debug("Database error rescheduling task: {0}".format(e))
             session.rollback()
@@ -1135,6 +1144,7 @@ class Database(object):
         @param category: filter by category
         @param offset: list offset
         @param status: filter by task status
+        @param experiment: experiment id
         @param sample_id: filter tasks for a sample
         @param not_status: exclude this task status from filter
         @param completed_after: only list tasks completed after this timestamp
@@ -1245,6 +1255,26 @@ class Database(object):
         finally:
             session.close()
         return True
+
+    @classlock
+    def view_experiment(self, id=None, name=None):
+        """View experiment by id or name."""
+        session = self.Session()
+        try:
+            experiment = session.query(Experiment)
+            if id is not None:
+                experiment = experiment.get(id)
+            elif name is not None:
+                experiment = experiment.filter_by(name=name).first()
+            else:
+                log.critical("No experiment ID or name has been provided")
+                return None
+        except SQLAlchemyError as e:
+            log.debug("Database error viewing experiment: {0}".format(e))
+            return None
+        finally:
+            session.close()
+        return experiment
 
     @classlock
     def view_sample(self, sample_id):
