@@ -20,6 +20,7 @@ class ExperimentManager(object):
         "list": "",
         "new": "name path | timeout tags options",
         "schedule": "name | delta timeout",
+        "count_available_machines": "",
     }
 
     def check_arguments(self, action, args, kwargs):
@@ -99,33 +100,48 @@ class ExperimentManager(object):
                            timeout=time_duration(timeout))
         print "Scheduled experiment '%s' with ID: %d" % (name, task.id)
 
+    def handle_count_available_machines(self, verbose=True):
+        """Count the available machines for longterm analysis."""
+        # TODO Allow tags to be specified.
+        if verbose:
+            print "Available machines:", db.count_machines_available()
+        else:
+            print db.count_machines_available()
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("action", type=str, help="Action to perform")
     parser.add_argument("arguments", type=str, nargs="*", help="Arguments for the action")
     args = parser.parse_args()
 
+    action = args.action.replace("-", "_")
+
     em = ExperimentManager()
-    if not hasattr(em, "handle_%s" % args.action):
-        print "Invalid action:", args.action
+    if not hasattr(em, "handle_%s" % action):
+        print "Invalid action:", action
         exit(1)
+
+    values = {
+        "true": True,
+        "false": False,
+    }
 
     args_, kwargs = [], {}
     for arg in args.arguments:
         if "=" in arg:
             k, v = arg.split("=", 1)
-            kwargs[k.strip()] = v.strip()
+            kwargs[k.strip()] = values.get(v.strip(), v.strip())
         else:
             args_.append(arg.strip())
 
-    ret = em.check_arguments(args.action, args_, kwargs)
+    ret = em.check_arguments(action, args_, kwargs)
     if ret:
         print "Missing argument:", ret
         print
-        em.handle_help(args.action)
+        em.handle_help(action)
         exit(1)
 
-    getattr(em, "handle_%s" % args.action)(*args_, **kwargs)
+    getattr(em, "handle_%s" % action)(*args_, **kwargs)
 
 
 if __name__ == "__main__":
