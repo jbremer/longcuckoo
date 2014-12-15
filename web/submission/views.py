@@ -33,7 +33,7 @@ def index(request):
         custom = request.POST.get("custom", "")
         memory = bool(request.POST.get("memory", False))
         enforce_timeout = bool(request.POST.get("enforce_timeout", False))
-        tags = request.POST.get("tags", None)
+        tags = request.POST.get("tags", "")
         recurring = request.POST.get("recurring", None)
         experiment_name = request.POST.get("experiment_name", "")
 
@@ -50,6 +50,9 @@ def index(request):
         recurring = TASK_SINGLE
         if request.POST.get("recurring"):
             recurring = TASK_RECURRENT
+            if tags:
+                tags += ", "
+            tags = "longterm"
 
         db = Database()
         task_ids = []
