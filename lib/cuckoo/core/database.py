@@ -6,7 +6,7 @@ import os
 import json
 import logging
 import threading
-from datetime import datetime,timedelta
+from datetime import datetime, timedelta
 
 from lib.cuckoo.common.config import Config
 from lib.cuckoo.common.constants import CUCKOO_ROOT
@@ -31,6 +31,8 @@ except ImportError:
                                 "(install with `pip install sqlalchemy`)")
 
 log = logging.getLogger(__name__)
+
+null = None
 
 SCHEMA_VERSION = "18eee46c6f81"
 TASK_PENDING = "pending"
@@ -515,7 +517,7 @@ class Database(object):
 
                 tag = self._get_or_create(session, Tag, name=tag.strip())
                 machine.tags.append(tag)
-        session.add(machine)
+                session.add(machine)
 
         try:
             session.commit()
@@ -562,9 +564,9 @@ class Database(object):
             subquery = session.query(Task.experiment).filter(task1.experiment_id == task2.experiment_id).filter(task2.status == TASK_RUNNING)
 
             if machine != "":
-                row = session.query(Task).filter(Task.status == status).filter(Task.added_on <= datetime.now()).filter(Machine.name==machine).order_by("priority desc, added_on").filter(~Task.experiment.in_(subquery)).first()
+                row = session.query(Task).filter(Task.status == status).filter(Task.added_on <= datetime.now()).filter(Machine.name==machine).order_by("priority desc, added_on").filter(~Task.experiment_id.in_(subquery)).first()
             else:
-                row = session.query(Task).filter(Task.status == status).filter(Task.added_on <= datetime.now()).order_by("priority desc, added_on").filter(~Task.experiment.in_(subquery)).first()
+                row = session.query(Task).filter(Task.status == status).filter(Task.added_on <= datetime.now()).order_by("priority desc, added_on").filter(~Task.experiment_id.in_(subquery)).first()
 
             if not row:
                 return None
@@ -644,7 +646,7 @@ class Database(object):
         session = self.Session()
         try:
             if locked:
-                machines = session.query(Machine).options(joinedload("tags")).filter(Machine.locked_by!=None).all()
+                machines = session.query(Machine).options(joinedload("tags")).filter(Machine.locked_by != null).all()
             else:
                 machines = session.query(Machine).options(joinedload("tags")).all()
         except SQLAlchemyError as e:
@@ -779,7 +781,7 @@ class Database(object):
         """
         session = self.Session()
         try:
-            machines_count = session.query(Machine).filter(or_(Machine.locked_by==locked_by, Machine.locked_by==None)).count()
+            machines_count = session.query(Machine).filter(or_(Machine.locked_by == locked_by, Machine.locked_by == null)).count()
         except SQLAlchemyError as e:
             log.debug("Database error counting machines: {0}".format(e))
             return 0
@@ -1121,15 +1123,15 @@ class Database(object):
 
     @classlock
     def list_experiments(self, limit=None, details=False, category=None,
-                    offset=None, status=None, not_status=None):
+                         offset=None, status=None, not_status=None):
         session = self.Session()
         try:
-            experiments = session.query(Experiment).options(joinedload('tasks')).order_by(Experiment.id).all()
+            experiments = session.query(Experiment).options(joinedload("tasks")).order_by(Experiment.id).all()
             for experiment in experiments:
                 experiment.last_task = experiment.tasks[-1]
         except SQLAlchemyError as e:
             log.debug("Database error listing experiments: {0}".format(e))
-            return None
+            return []
         finally:
             session.close()
         return experiments
