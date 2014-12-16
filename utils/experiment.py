@@ -20,7 +20,7 @@ class ExperimentManager(object):
         "list": "",
         "new": "name path | timeout tags options",
         "schedule": "name | delta timeout",
-        "count_available_machines": "",
+        "count_available_machines": "| verbose",
     }
 
     def check_arguments(self, action, args, kwargs):
@@ -39,6 +39,7 @@ class ExperimentManager(object):
         action  = Action to get help on.
 
         """
+        action = action.replace("-", "_")
         if not hasattr(self, "handle_%s" % action):
             print "Unknown action:", action
             exit(1)
@@ -101,7 +102,11 @@ class ExperimentManager(object):
         print "Scheduled experiment '%s' with ID: %d" % (name, task.id)
 
     def handle_count_available_machines(self, verbose=True):
-        """Count the available machines for longterm analysis."""
+        """Count the available machines for longterm analysis.
+
+        [verbose = Verbose output.]
+
+        """
         # TODO Allow tags to be specified.
         if verbose:
             print "Available machines:", db.count_machines_available()
