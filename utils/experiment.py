@@ -164,11 +164,21 @@ class ExperimentManager(object):
         else:
             print db.count_machines_available()
 
-    def handle_machine_cronjob(self):
+    def handle_machine_cronjob(self, action="dump", path=None):
         """Manage the machine cronjob - for provisioning virtual machines
-        for longterm analysis."""
+        for longterm analysis.
+
+        [action  = Action to perform.]
+        [path    = Cronjob path in install mode.]
+
+        """
         cuckoo = os.path.abspath(os.path.join(__file__, "..", ".."))
-        print MACHINE_CRONTAB.strip() % dict(cuckoo=cuckoo)
+        cronjob = MACHINE_CRONTAB.strip() % dict(cuckoo=cuckoo)
+
+        if action == "dump":
+            print cronjob
+        elif action == "install":
+            open(path, "wb").write(cronjob)
 
     def handle_allocate_ipaddr(self, verbose=True):
         """Calculate the next available IP address. If a new network interface
