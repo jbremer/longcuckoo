@@ -14,8 +14,32 @@ from lib.cuckoo.core.database import Database, TASK_RECURRENT
 from lib.cuckoo.common.utils import time_duration
 
 
+MACHINE_CRONTAB = """
+#!/bin/sh
+# Copyright (C) 2010-2014 Cuckoo Foundation.
+# This file is part of Cuckoo Sandbox - http://www.cuckoosandbox.org
+# See the file 'docs/LICENSE' for copying permission.
+
+# This script should be run under the "cuckoo" user (assuming that's the
+# user under which Cuckoo Sandbox runs).
+set -e
+
+CUCKOO="%(cuckoo)s"
+EXPERIMENT="$CUCKOO/utils/experiment.py"
+
+# We strive to have at least 5 provisioned virtual machines at any point.
+while [ "$("$EXPERIMENT" count-available-machines verbose=false)" -lt 5 ]; do
+    IPADDR="$("$EXPERIMENT" allocate-ipaddr verbose=false)"
+    EGGNAME="$("$EXPERIMENT" allocate-eggname verbose=false)"
+    vmcloak-clone -r --bird bird0 --hostonly-ip "$IPADDR" \\
+        --cuckoo "$CUCKOO" "$EGGNAME"
+done
+"""
+
 def allocate_ip_address():
-    """Allocate the next available IP address. TODO Unuglify this code."""
+    """Allocate the next available IP address."""
+    # TODO Unuglify this code.
+    # TODO Add multiple subnet support.
     ips = []
     for machine in db.list_machines():
         ip = machine.ip.split(".")
@@ -24,12 +48,18 @@ def allocate_ip_address():
 
         ips.append(int(ip[3]))
 
-    next_ip = max(ips) + 1
+    next_ip = max(ips) + 1 if ips else 3
     if next_ip == 254:
         print "Ran out of IP addresses for this subnet.."
         return
 
     return "192.168.56.%d" % next_ip
+
+
+def allocate_eggname():
+    """Allocate the next available eggname."""
+    # TODO Add support for egg numbes with three digits.
+    return "egg%02d" % (db.count_machines_available() + 1)
 
 
 class ExperimentManager(object):
@@ -39,7 +69,9 @@ class ExperimentManager(object):
         "new": "name path | timeout tags options",
         "schedule": "name | delta timeout",
         "count_available_machines": "| verbose",
+        "machine_cronjob": "",
         "allocate_ipaddr": "| verbose",
+        "allocate_eggname": "| verbose",
     }
 
     def check_arguments(self, action, args, kwargs):
@@ -132,6 +164,12 @@ class ExperimentManager(object):
         else:
             print db.count_machines_available()
 
+    def handle_machine_cronjob(self):
+        """Manage the machine cronjob - for provisioning virtual machines
+        for longterm analysis."""
+        cuckoo = os.path.abspath(os.path.join(__file__, "..", ".."))
+        print MACHINE_CRONTAB.strip() % dict(cuckoo=cuckoo)
+
     def handle_allocate_ipaddr(self, verbose=True):
         """Calculate the next available IP address. If a new network interface
         is required to allocate a new IP address, then this is also handled.
@@ -148,6 +186,22 @@ class ExperimentManager(object):
             print "Next IP address:", ip
         else:
             print ip
+
+    def handle_allocate_eggname(self, verbose=True):
+        """Calculate the next available egg name. Doesn't actually allocate a
+        new egg name but merely calculates it.
+
+        [verbose = Verbose output.]
+
+        """
+        eggname = allocate_eggname()
+        if not eggname:
+            exit(1)
+
+        if verbose:
+            print "Next egg name:", eggname
+        else:
+            print eggname
 
 
 def main():
