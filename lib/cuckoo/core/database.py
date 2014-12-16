@@ -481,15 +481,19 @@ class Database(object):
 
                 tag = self._get_or_create(session, Tag, name=tag.strip())
                 machine.tags.append(tag)
-                session.add(machine)
 
         try:
+            session.add(machine)
             session.commit()
+            session.refresh(machine)
         except SQLAlchemyError as e:
             log.debug("Database error adding machine: {0}".format(e))
             session.rollback()
+            return None
         finally:
             session.close()
+
+        return machine
 
     def set_status(self, task_id, status):
         """Set task status.
