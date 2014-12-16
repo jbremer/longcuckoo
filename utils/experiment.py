@@ -14,6 +14,24 @@ from lib.cuckoo.core.database import Database, TASK_RECURRENT
 from lib.cuckoo.common.utils import time_duration
 
 
+def allocate_ip_address():
+    """Allocate the next available IP address. TODO Unuglify this code."""
+    ips = []
+    for machine in db.list_machines():
+        ip = machine.ip.split(".")
+        if len(ip) != 4 or ip[0] != "192" or ip[1] != "168" or ip[2] != "56":
+            continue
+
+        ips.append(int(ip[3]))
+
+    next_ip = max(ips) + 1
+    if next_ip == 254:
+        print "Ran out of IP addresses for this subnet.."
+        return
+
+    return "192.168.56.%d" % next_ip
+
+
 class ExperimentManager(object):
     ARGUMENTS = {
         "help": "action",
@@ -21,6 +39,7 @@ class ExperimentManager(object):
         "new": "name path | timeout tags options",
         "schedule": "name | delta timeout",
         "count_available_machines": "| verbose",
+        "allocate_ipaddr": "| verbose",
     }
 
     def check_arguments(self, action, args, kwargs):
@@ -112,6 +131,24 @@ class ExperimentManager(object):
             print "Available machines:", db.count_machines_available()
         else:
             print db.count_machines_available()
+
+    def handle_allocate_ipaddr(self, verbose=True):
+        """Calculate the next available IP address. If a new network interface
+        is required to allocate a new IP address, then this is also handled.
+        Doesn't actually allocate a new IP address but merely calculates it.
+
+        [verbose = Verbose output.]
+
+        """
+        ip = allocate_ip_address()
+        if not ip:
+            exit(1)
+
+        if verbose:
+            print "Next IP address:", ip
+        else:
+            print ip
+
 
 def main():
     parser = argparse.ArgumentParser()
