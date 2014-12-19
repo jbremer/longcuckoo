@@ -565,7 +565,8 @@ class Database(object):
         try:
             task1, task2 = aliased(Task), aliased(Task)
 
-            q = session.query(Task.experiment_id)
+            q = session.query(task1.experiment_id)
+            q = q.filter(task1.id != task2.id)
             q = q.filter(task1.experiment_id == task2.experiment_id)
             q = q.filter(task2.status == TASK_RUNNING)
 
