@@ -565,7 +565,7 @@ class Database(object):
         try:
             task1 = aliased(Task)
             task2 = aliased(Task)
-            subquery = session.query(Task.experiment).filter(task1.experiment_id == task2.experiment_id).filter(task2.status == TASK_RUNNING)
+            subquery = session.query(Task.experiment_id).filter(task1.experiment_id == task2.experiment_id).filter(task2.status == TASK_RUNNING)
 
             if machine != "":
                 row = session.query(Task).filter(Task.status == status).filter(Task.added_on <= datetime.now()).filter(Machine.name==machine).order_by("priority desc, added_on").filter(~Task.experiment_id.in_(subquery)).first()
