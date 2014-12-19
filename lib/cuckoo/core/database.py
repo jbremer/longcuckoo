@@ -529,7 +529,7 @@ class Database(object):
             task1 = aliased(Task)
             task2 = aliased(Task)
 
-            subquery = session.query(Task.experiment).filter(task1.experiment_id == task2.experiment_id).filter(task2.status == TASK_RUNNING)
+            subquery = session.query(Task.experiment_id).filter(task1.experiment_id == task2.experiment_id).filter(task2.status == TASK_RUNNING)
             row = session.query(Task).filter(Task.status == status).filter(Task.added_on <= datetime.now()).order_by("priority desc, tasks.added_on").filter(~Task.experiment_id.in_(subquery)).first()
             if not row:
                 return None
