@@ -563,14 +563,19 @@ class Database(object):
         session = self.Session()
         row = None
         try:
-            task1 = aliased(Task)
-            task2 = aliased(Task)
-            subquery = session.query(Task.experiment_id).filter(task1.experiment_id == task2.experiment_id).filter(task2.status == TASK_RUNNING)
+            task1, task2 = aliased(Task), aliased(Task)
 
+            q = session.query(Task.experiment_id)
+            q = q.filter(task1.experiment_id == task2.experiment_id)
+            q = q.filter(task2.status == TASK_RUNNING)
+
+            row = session.query(Task)
+            row = row.filter(Task.status == status)
+            row = row.filter(Task.added_on <= datetime.now())
+            row = row.filter(~Task.experiment_id.in_(q))
             if machine != "":
-                row = session.query(Task).filter(Task.status == status).filter(Task.added_on <= datetime.now()).filter(Machine.name==machine).order_by("priority desc, added_on").filter(~Task.experiment_id.in_(subquery)).first()
-            else:
-                row = session.query(Task).filter(Task.status == status).filter(Task.added_on <= datetime.now()).order_by("priority desc, added_on").filter(~Task.experiment_id.in_(subquery)).first()
+                row = row.filter(Machine.name == machine)
+            row = row.order_by("priority desc, tasks.added_on").first()
 
             if not row:
                 return None
