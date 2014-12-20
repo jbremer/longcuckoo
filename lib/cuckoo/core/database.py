@@ -33,7 +33,7 @@ log = logging.getLogger(__name__)
 
 null = None
 
-SCHEMA_VERSION = "18eee46c6f81"
+SCHEMA_VERSION = "5adbab2b7915"
 TASK_PENDING = "pending"
 TASK_RUNNING = "running"
 TASK_COMPLETED = "completed"
@@ -76,9 +76,7 @@ class Machine(Base):
     interface = Column(String(255), nullable=True)
     snapshot = Column(String(255), nullable=True)
     locked_by = Column(Integer(), nullable=True, default=None)
-    locked_changed_on = Column(DateTime(timezone=False), nullable=True)
     status = Column(String(255), nullable=True)
-    status_changed_on = Column(DateTime(timezone=False), nullable=True)
     resultserver_ip = Column(String(255), nullable=False)
     resultserver_port = Column(String(255), nullable=False)
 
@@ -668,7 +666,6 @@ class Database(object):
 
         if machine:
             machine.locked_by = locked_by
-            machine.locked_changed_on = datetime.now()
             try:
                 session.commit()
                 session.refresh(machine)
@@ -696,7 +693,6 @@ class Database(object):
 
         if machine:
             machine.locked_by = None
-            machine.locked_changed_on = datetime.now()
             try:
                 session.commit()
                 session.refresh(machine)
@@ -724,7 +720,6 @@ class Database(object):
 
         if machine:
             machine.locked_by = None
-            machine.locked_changed_on = datetime.now()
             try:
                 session.commit()
                 session.refresh(machine)
@@ -766,7 +761,6 @@ class Database(object):
 
         if machine:
             machine.status = status
-            machine.status_changed_on = datetime.now()
             try:
                 session.commit()
                 session.refresh(machine)
