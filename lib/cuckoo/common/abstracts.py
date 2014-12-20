@@ -94,32 +94,32 @@ class Machinery(object):
         self.module_name = module_name
         mmanager_opts = self.options.get(module_name)
 
-        for machine_id in mmanager_opts["machines"].split(","):
-            if not machine_id.strip():
+        for name in mmanager_opts["machines"].split(","):
+            if not name.strip():
                 continue
 
             try:
-                machine_opts = self.options.get(machine_id.strip())
+                options = self.options.get(name.strip())
                 machine = Dictionary()
-                machine.id = machine_id.strip()
-                machine.label = machine_opts[self.LABEL]
-                machine.platform = machine_opts["platform"]
-                machine.tags = machine_opts.get("tags")
-                machine.ip = machine_opts["ip"]
+                machine.name = name.strip()
+                machine.label = options[self.LABEL]
+                machine.platform = options["platform"]
+                machine.tags = options.get("tags")
+                machine.ip = options["ip"]
 
                 # If configured, use specific network interface for this
                 # machine, else use the default value.
-                machine.interface = machine_opts.get("interface")
+                machine.interface = options.get("interface")
 
                 # If configured, use specific snapshot name, else leave it
                 # empty and use default behaviour.
-                machine.snapshot = machine_opts.get("snapshot")
+                machine.snapshot = options.get("snapshot")
 
                 # If configured, use specific resultserver IP and port,
                 # else use the default value.
                 opt_resultserver = self.options_globals.resultserver
-                ip = machine_opts.get("resultserver_ip", opt_resultserver.ip)
-                port = machine_opts.get("resultserver_port", opt_resultserver.port)
+                ip = options.get("resultserver_ip", opt_resultserver.ip)
+                port = options.get("resultserver_port", opt_resultserver.port)
 
                 machine.resultserver_ip = ip
                 machine.resultserver_port = port
@@ -129,7 +129,7 @@ class Machinery(object):
                     if value and isinstance(value, basestring):
                         machine[key] = value.strip()
 
-                self.db.add_machine(name=machine.id,
+                self.db.add_machine(name=machine.name,
                                     label=machine.label,
                                     ip=machine.ip,
                                     platform=machine.platform,
@@ -140,7 +140,7 @@ class Machinery(object):
                                     resultserver_port=port)
             except (AttributeError, CuckooOperationalError) as e:
                 log.warning("Configuration details about machine %s "
-                            "are missing: %s", machine_id, e)
+                            "are missing: %s", name, e)
                 continue
 
     def _initialize_check(self):
@@ -197,7 +197,6 @@ class Machinery(object):
         @param tags: machine tags
         @return: machine or None.
         """
-
         if machine_id:
             return self.db.lock_machine(name=machine_id, locked_by=locked_by)
         elif platform:
@@ -390,8 +389,7 @@ class LibVirtMachinery(Machinery):
             try:
                 self.vms[label].create()
             except libvirt.libvirtError as e:
-                raise CuckooMachineError("Error starting virtual machine without reverting "
-                        "{0}: {1}".format(label, e))
+                raise CuckooMachineError("Error starting virtual machine without reverting {0}: {1}".format(label, e))
             finally:
                 self._disconnect(conn)
 
