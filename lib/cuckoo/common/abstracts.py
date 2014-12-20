@@ -118,11 +118,13 @@ class Machinery(object):
                 # If configured, use specific resultserver IP and port,
                 # else use the default value.
                 opt_resultserver = self.options_globals.resultserver
-                ip = options.get("resultserver_ip", opt_resultserver.ip)
-                port = options.get("resultserver_port", opt_resultserver.port)
 
-                machine.resultserver_ip = ip
-                machine.resultserver_port = port
+                if "resultserver_ip" in options and "resultserver_port" in options:
+                    machine.resultserver_ip = options["resultserver_ip"]
+                    machine.resultserver_port = options["resultserver_port"]
+                else:
+                    machine.resultserver_ip = opt_resultserver.ip
+                    machine.resultserver_port = opt_resultserver.port
 
                 # Strip parameters.
                 for key, value in machine.items():
@@ -142,8 +144,8 @@ class Machinery(object):
                                     tags=machine.tags,
                                     interface=machine.interface,
                                     snapshot=machine.snapshot,
-                                    resultserver_ip=ip,
-                                    resultserver_port=port,
+                                    resultserver_ip=machine.resultserver_ip,
+                                    resultserver_port=machine.resultserver_port,
                                     locked_by=machine.locked_by)
             except (AttributeError, CuckooOperationalError) as e:
                 log.warning("Configuration details about machine %s "
