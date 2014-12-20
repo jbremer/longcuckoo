@@ -644,7 +644,7 @@ class Database(object):
             return None
 
         try:
-            machines = session.query(Machine)
+            machines = session.query(Machine).order_by(Machine.id)
             if name:
                 machines = machines.filter_by(name=name)
             if platform:
@@ -658,10 +658,10 @@ class Database(object):
             if not machines.count():
                 raise CuckooOperationalError("No machines match selection criteria.")
 
-            # Get the machine already reserved by the experiment
+            # Get the machine already reserved by the experiment.
             machine = machines.filter_by(locked_by=locked_by).first()
             if not machine:
-                # Get a free machine
+                # Get a free machine.
                 machine = machines.filter_by(locked_by=None).first()
         except SQLAlchemyError as e:
             log.debug("Database error locking machine: {0}".format(e))
@@ -906,10 +906,10 @@ class Database(object):
             else:
                 task.clock = clock
 
-        session.add(task)
-
         try:
+            session.add(task)
             session.commit()
+            session.refresh(task)
             task_id = task.id
         except SQLAlchemyError as e:
             log.debug("Database error adding task: {0}".format(e))
