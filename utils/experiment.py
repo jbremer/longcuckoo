@@ -32,7 +32,7 @@ while [ "$("$EXPERIMENT" count-available-machines verbose=false)" -lt 5 ]; do
     IPADDR="$("$EXPERIMENT" allocate-ipaddr verbose=false)"
     EGGNAME="$("$EXPERIMENT" allocate-eggname verbose=false)"
     vmcloak-clone -r --bird bird0 --hostonly-ip "$IPADDR" \\
-        --cuckoo "$CUCKOO" "$EGGNAME"
+        --cuckoo "$CUCKOO" "$EGGNAME" --tags longterm
 done
 """
 

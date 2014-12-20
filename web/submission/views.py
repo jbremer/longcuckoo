@@ -50,9 +50,7 @@ def index(request):
         recurring = TASK_SINGLE
         if request.POST.get("recurring"):
             recurring = TASK_RECURRENT
-            if tags:
-                tags += ", "
-            tags = "longterm"
+            tags = "longterm,%s" % tags
 
         db = Database()
         task_ids = []
