@@ -551,6 +551,7 @@ class Scheduler:
                 if active_analysis_count <= 0:
                     self.stop()
             else:
+                task = None
                 if machinery.availables():
                     # Machines available, get the next task
                     # lock the machine, and run the analysis.
