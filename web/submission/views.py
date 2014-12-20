@@ -57,7 +57,7 @@ def index(request):
         task_machines = []
 
         if machine.lower() == "all":
-            for entry in db.list_machines():
+            for entry in db.list_machines(locked=False):
                 task_machines.append(entry.label)
         else:
             task_machines.append(machine)
@@ -141,7 +141,7 @@ def index(request):
 
         # Prepare a list of VM names, description label based on tags.
         machines = []
-        for machine in Database().list_machines():
+        for machine in Database().list_machines(locked=False):
             tags = []
             for tag in machine.tags:
                 tags.append(tag.name)
