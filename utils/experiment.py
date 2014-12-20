@@ -59,7 +59,7 @@ def allocate_ip_address():
 def allocate_eggname():
     """Allocate the next available eggname."""
     # TODO Add support for egg numbes with three digits.
-    return "egg%02d" % (db.count_machines_available() + 1)
+    return "egg%02d" % (len(db.list_machines()) + 1)
 
 
 class ExperimentManager(object):
