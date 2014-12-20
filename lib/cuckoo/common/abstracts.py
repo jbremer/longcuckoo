@@ -129,6 +129,12 @@ class Machinery(object):
                     if value and isinstance(value, basestring):
                         machine[key] = value.strip()
 
+                experiment = self.db.view_experiment(machine_name=machine.name)
+                if experiment is not None:
+                    machine.locked_by = experiment.id
+                else:
+                    machine.locked_by = None
+
                 self.db.add_machine(name=machine.name,
                                     label=machine.label,
                                     ip=machine.ip,
@@ -137,7 +143,8 @@ class Machinery(object):
                                     interface=machine.interface,
                                     snapshot=machine.snapshot,
                                     resultserver_ip=ip,
-                                    resultserver_port=port)
+                                    resultserver_port=port,
+                                    locked_by=machine.locked_by)
             except (AttributeError, CuckooOperationalError) as e:
                 log.warning("Configuration details about machine %s "
                             "are missing: %s", name, e)

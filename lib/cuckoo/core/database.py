@@ -107,7 +107,7 @@ class Machine(Base):
         return json.dumps(self.to_dict())
 
     def __init__(self, name, label, ip, platform, interface, snapshot,
-                 resultserver_ip, resultserver_port):
+                 resultserver_ip, resultserver_port, locked_by):
         self.name = name
         self.label = label
         self.ip = ip
@@ -116,6 +116,7 @@ class Machine(Base):
         self.snapshot = snapshot
         self.resultserver_ip = resultserver_ip
         self.resultserver_port = resultserver_port
+        self.locked_by = locked_by
 
 class Tag(Base):
     """Tag describing anything you want."""
@@ -260,6 +261,7 @@ class Experiment(Base):
     added_on = Column(DateTime(timezone=False),
                       default=datetime.now,
                       nullable=False)
+    machine_name = Column(Text(), nullable=True)
 
 class Task(Base):
     """Analysis task queue."""
@@ -487,7 +489,7 @@ class Database(object):
 
     @classlock
     def add_machine(self, name, label, ip, platform, tags, interface,
-                    snapshot, resultserver_ip, resultserver_port):
+                    snapshot, resultserver_ip, resultserver_port, locked_by):
         """Add a guest machine.
         @param name: machine id
         @param label: machine label
@@ -497,6 +499,7 @@ class Database(object):
         @param snapshot: snapshot name to use instead of the current one, if configured
         @param resultserver_ip: IP address of the Result Server
         @param resultserver_port: port of the Result Server
+        @param locked_by: locked by experiment id
         """
         session = self.Session()
         machine = Machine(name=name,
@@ -506,7 +509,8 @@ class Database(object):
                           interface=interface,
                           snapshot=snapshot,
                           resultserver_ip=resultserver_ip,
-                          resultserver_port=resultserver_port)
+                          resultserver_port=resultserver_port,
+                          locked_by=locked_by)
         # Deal with tags format (i.e., foo,bar,baz)
         if tags:
             for tag in tags.split(","):
@@ -723,7 +727,14 @@ class Database(object):
             session.close()
 
         if machine:
+            # This machine is now locked by the specified experiment.
             machine.locked_by = locked_by
+
+            # Update the experiment to reflect the machine name.
+            experiment = session.query(Experiment).get(locked_by)
+            if experiment is not None:
+                experiment.machine_name = machine.name
+
             try:
                 session.commit()
                 session.refresh(machine)
@@ -1276,7 +1287,7 @@ class Database(object):
         return True
 
     @classlock
-    def view_experiment(self, id=None, name=None):
+    def view_experiment(self, id=None, name=None, machine_name=None):
         """View experiment by id or name."""
         session = self.Session()
         try:
@@ -1285,8 +1296,11 @@ class Database(object):
                 experiment = experiment.get(id)
             elif name is not None:
                 experiment = experiment.filter_by(name=name).first()
+            elif machine_name is not None:
+                experiment = experiment.filter_by(machine_name=machine_name)
+                experiment = experiment.first()
             else:
-                log.critical("No experiment ID or name has been provided")
+                log.critical("No experiment ID, name, or machine name has been provided")
                 return None
         except SQLAlchemyError as e:
             log.debug("Database error viewing experiment: {0}".format(e))
