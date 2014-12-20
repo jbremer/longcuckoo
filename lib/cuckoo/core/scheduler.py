@@ -8,7 +8,6 @@ import shutil
 import logging
 import Queue
 from threading import Thread, Lock
-from datetime import timedelta
 
 from lib.cuckoo.common.config import Config
 from lib.cuckoo.common.constants import CUCKOO_ROOT
@@ -114,7 +113,7 @@ class AnalysisManager(Thread):
             # able to store a copy of the file?
             try:
                 shutil.copy(self.task.target, self.binary)
-            except (IOError, shutil.Error) as e:
+            except (IOError, shutil.Error):
                 log.error("Unable to store file from \"%s\" to \"%s\", "
                           "analysis aborted", self.task.target, self.binary)
                 return False
@@ -268,8 +267,10 @@ class AnalysisManager(Thread):
             # Initialize the guest manager.
             # FIXME - The critical timeout options is analysis_timeout + 60 sec
             #           should it be configurable?
-            guest = GuestManager(self.machine.name, self.machine.ip,
-                    options["timeout"] + 60, self.machine.platform)
+            guest = GuestManager(self.machine.name,
+                                 self.machine.ip,
+                                 options["timeout"] + 60,
+                                 self.machine.platform)
 
             # Start the analysis if we are the first task of a series
             if is_first_task:
