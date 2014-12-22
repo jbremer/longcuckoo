@@ -6,6 +6,8 @@ ISOFILE=""
 SERIALKEY=""
 TMPFS="0"
 LONGTERM="0"
+TAGS=""
+DEPENDENCIES="dotnet40 acrobat9"
 
 usage() {
     echo "Usage: $0 [options...]"
@@ -14,6 +16,8 @@ usage() {
     echo "-s --serial-key: Serial Key for the given Windows XP version."
     echo "-t --tmpfs: Indicate tmpfs should be used for snapshots."
     echo "-l --longterm: Indicate this is a longterm analysis setup."
+    echo "-T --tags: Additional tags for the generated machins."
+    echo "-d --dependencies: Dependencies to install in the machines."
     exit 1
 }
 
@@ -43,6 +47,16 @@ while [ "$#" -gt 0 ]; do
 
         -l|--longterm)
             LONGTERM="1"
+            ;;
+
+        -T|--tags)
+            TAGS="$1"
+            shift
+            ;;
+
+        -d|--dependencies)
+            DEPENDENCIES="$1"
+            shift
             ;;
 
         *)
@@ -141,7 +155,6 @@ mkdir -p "$VMS" "$VMBACKUP" "$VMMOUNT"
 chown cuckoo:cuckoo "$VMS" "$VMBACKUP" "$VMMOUNT"
 
 VMCLOAKCONF="$(mktemp)"
-TAGS=""
 
 if [ "$LONGTERM" -ne 0 ]; then
     TAGS="longterm, $TAGS"
@@ -154,7 +167,7 @@ vm-dir = $VMS
 data-dir = $VMS
 iso-mount = $MOUNT
 serial-key = $SERIALKEY
-dependencies = dotnet40 acrobat9
+dependencies = $DEPENDENCIES
 temp-dirpath = $VMTEMP
 tags = $TAGS
 EOF
