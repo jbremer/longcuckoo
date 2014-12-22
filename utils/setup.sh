@@ -5,6 +5,7 @@ VMCOUNT="40"
 ISOFILE=""
 SERIALKEY=""
 TMPFS="0"
+LONGTERM="0"
 
 usage() {
     echo "Usage: $0 [options...]"
@@ -12,6 +13,7 @@ usage() {
     echo "-i --iso: Path to a Windows XP Installer ISO."
     echo "-s --serial-key: Serial Key for the given Windows XP version."
     echo "-t --tmpfs: Indicate tmpfs should be used for snapshots."
+    echo "-l --longterm: Indicate this is a longterm analysis setup."
     exit 1
 }
 
@@ -39,6 +41,10 @@ while [ "$#" -gt 0 ]; do
             TMPFS="1"
             ;;
 
+        -l|--longterm)
+            LONGTERM="1"
+            ;;
+
         *)
             echo "$0: Invalid argument.. $1" >&2
             usage
@@ -49,6 +55,13 @@ done
 
 if [ "$(id -u)" -ne 0 ]; then
     echo "You'll probably want to run this script as root."
+    exit 1
+fi
+
+# TODO Keep this check?
+if [ "$TMPFS" -ne 0 ] && [ "$LONGTERM" -ne 0 ]; then
+    echo "Longterm setups generally don't require tmpfs.."
+    echo "If you're sure you want it, then remove this check."
     exit 1
 fi
 
@@ -128,6 +141,11 @@ mkdir -p "$VMS" "$VMBACKUP" "$VMMOUNT"
 chown cuckoo:cuckoo "$VMS" "$VMBACKUP" "$VMMOUNT"
 
 VMCLOAKCONF="$(mktemp)"
+TAGS=""
+
+if [ "$LONGTERM" -ne 0 ]; then
+    TAGS="longterm, $TAGS"
+fi
 
 cat > "$VMCLOAKCONF" << EOF
 [vmcloak]
@@ -138,6 +156,7 @@ iso-mount = $MOUNT
 serial-key = $SERIALKEY
 dependencies = dotnet40 acrobat9
 temp-dirpath = $VMTEMP
+tags = $TAGS
 EOF
 
 chown cuckoo:cuckoo "$VMCLOAKCONF"
@@ -179,6 +198,22 @@ if [ "$TMPFS" -ne 0 ]; then
     # Copy all files to the mount and create all required symlinks.
     sudo -u cuckoo -i "$CUCKOO/utils/tmpfs.sh" \
         initialize-mount "$VMS" "$VMBACKUP" "$VMMOUNT"
+fi
+
+if [ "$LONGTERM" -ne 0 ]; then
+    CRONJOB="/home/cuckoo/vmprovision.sh"
+
+    # Install the machine cronjob.
+    "$CUCKOO/utils/experiment.py" machine-cronjob install "$CRONJOB"
+    chown cuckoo:cuckoo "$CRONJOB"
+    chmod +x "$CRONJOB"
+
+    # We ant to run the vm provisioning cronjob every five minutes. Also
+    # ensure that we only install the cronjob entry once.
+    CRONTAB="$(crontab -u cuckoo -l)"
+    if [[ ! "$CRONTAB" =~ "$CRONJOB" ]]; then
+        (echo "$CRONTAB" ; echo "*/5 * * * * $CRONJOB")|crontab -u cuckoo -
+    fi
 fi
 
 # Add "nmi_watchdog=0" to the GRUB commandline if it's not in there already.
