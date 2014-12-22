@@ -221,7 +221,7 @@ if [ "$LONGTERM" -ne 0 ]; then
     chown cuckoo:cuckoo "$CRONJOB"
     chmod +x "$CRONJOB"
 
-    # We ant to run the vm provisioning cronjob every five minutes. Also
+    # We want to run the vm provisioning cronjob every five minutes. Also
     # ensure that we only install the cronjob entry once.
     CRONTAB="$(crontab -u cuckoo -l)"
     if [[ ! "$CRONTAB" =~ "$CRONJOB" ]]; then
