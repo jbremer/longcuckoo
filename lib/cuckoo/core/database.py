@@ -630,7 +630,7 @@ class Database(object):
             if status is not None:
                 machines = machines.filter_by(status=status)
 
-            machines = machines.all()
+            machines = machines.order_by(Machine.id).all()
         except SQLAlchemyError as e:
             log.debug("Database error listing machines: {0}".format(e))
             return []
