@@ -607,19 +607,28 @@ class Database(object):
         finally:
             session.close()
 
-    def list_machines(self, locked=None):
+    def list_machines(self, locked=None, status=None):
         """Lists virtual machines.
         @return: list of virtual machines
         """
         session = self.Session()
         try:
             machines = session.query(Machine).options(joinedload("tags"))
+
+            # When used, machines are locked by an analysis task. For normal
+            # tasks the machine is only locked to one analysis, however, for
+            # longterm analysis experiments, machines are locked to one
+            # experiment for as long as the experiment is operational.
             if locked is True:
                 machines = machines.filter(Machine.locked_by != null)
             elif locked is False:
                 machines = machines.filter(Machine.locked_by == null)
             elif locked is not None:
                 log.error("Invalid 'locked' value: %r", locked)
+
+            # List by machine status.
+            if status is not None:
+                machines = machines.filter_by(status=status)
 
             machines = machines.all()
         except SQLAlchemyError as e:
