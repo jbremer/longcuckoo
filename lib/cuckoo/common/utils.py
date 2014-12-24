@@ -289,7 +289,7 @@ def time_duration(s):
     while s:
         # Parse the number.
         multiplier = 0
-        while s[0] in "1234567890":
+        while s and s[0] in "1234567890":
             multiplier = multiplier * 10 + int(s[0])
             s = s[1:]
 
