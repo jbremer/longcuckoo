@@ -181,10 +181,13 @@ def init_modules():
 
     # Import all auxiliary modules.
     import_package(modules.auxiliary)
+
     # Import all processing modules.
     import_package(modules.processing)
+
     # Import all signatures.
     import_package(modules.signatures)
+
     # Import all reporting modules.
     import_package(modules.reporting)
 

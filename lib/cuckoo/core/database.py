@@ -430,11 +430,7 @@ class Database(object):
         @return: row instance
         """
         instance = session.query(model).filter_by(**kwargs).first()
-        if instance:
-            return instance
-        else:
-            instance = model(**kwargs)
-            return instance
+        return instance or model(**kwargs)
 
     def clean_machines(self):
         """Clean old stored machines and related tables."""
@@ -1013,7 +1009,6 @@ class Database(object):
         @return: ID of the newly created task.
         """
         task = self.view_task(task_id)
-
         if not task:
             return None
 
@@ -1129,7 +1124,8 @@ class Database(object):
             if completed_after:
                 search = search.filter(Task.completed_on > completed_after)
 
-            tasks = search.order_by(Task.added_on.desc()).limit(limit).offset(offset).all()
+            tasks = search.order_by(Task.added_on.desc())
+            tasks = tasks.limit(limit).offset(offset).all()
         except SQLAlchemyError as e:
             log.debug("Database error listing tasks: {0}".format(e))
             return []
