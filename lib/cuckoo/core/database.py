@@ -1130,9 +1130,6 @@ class Database(object):
                 search = search.filter(Task.completed_on > completed_after)
 
             tasks = search.order_by(Task.added_on.desc()).limit(limit).offset(offset).all()
-
-            for task in tasks:
-                task.experiment
         except SQLAlchemyError as e:
             log.debug("Database error listing tasks: {0}".format(e))
             return []
