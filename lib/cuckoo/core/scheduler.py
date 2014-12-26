@@ -150,17 +150,15 @@ class AnalysisManager(Thread):
 
             # If the user specified a specific machine ID, a platform to be
             # used or machine tags acquire the machine accordingly.
-            try:
-                machine = machinery.acquire(machine_id=self.task.machine,
-                                            platform=self.task.platform,
-                                            tags=self.task.tags,
-                                            locked_by=self.task.experiment_id)
-            finally:
-                machine_lock.release()
+            machine = machinery.acquire(machine_id=self.task.machine,
+                                        platform=self.task.platform,
+                                        tags=self.task.tags,
+                                        locked_by=self.task.experiment_id)
 
             # If no machine is available at this moment, wait for one second
             # and try again.
             if not machine:
+                machine_lock.release()
                 log.debug("Task #%d: no machine available yet", self.task.id)
                 time.sleep(1)
             else:
@@ -239,6 +237,7 @@ class AnalysisManager(Thread):
         try:
             self.acquire_machine()
         except CuckooOperationalError as e:
+            machine_lock.release()
             log.error("Cannot acquire machine: {0}".format(e))
             return False
 
@@ -261,8 +260,19 @@ class AnalysisManager(Thread):
                                                self.machine.name,
                                                self.machine.label,
                                                machinery.__class__.__name__)
-            # Start the machine, revert only if we are the first task in the experiment
-            machinery.start(self.machine.label, revert=is_first_task)
+
+            # Starting the machinery takes some time. In order not to run into
+            # race conditions with max_machines_count because acquiring new
+            # machines takes place in parallel next to starting machines, for
+            # which it takes a little delay before the machines' status turns
+            # into "running", we hold the machine lock until the machine has
+            # fully started (or gives an error, of course).
+            try:
+                # Start the machine, revert only if we are the first task in
+                # the experiment.
+                machinery.start(self.machine.label, revert=is_first_task)
+            finally:
+                machine_lock.release()
 
             # Initialize the guest manager.
             # FIXME - The critical timeout options is analysis_timeout + 60 sec
