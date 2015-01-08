@@ -14,7 +14,7 @@ from lib.cuckoo.common.exceptions import CuckooDatabaseError
 from lib.cuckoo.common.exceptions import CuckooOperationalError
 from lib.cuckoo.common.exceptions import CuckooDependencyError
 from lib.cuckoo.common.objects import File, URL
-from lib.cuckoo.common.utils import create_folder, Singleton, classlock
+from lib.cuckoo.common.utils import create_folder, Singleton, classlock, time_duration
 
 try:
     from sqlalchemy import create_engine, Column, or_
@@ -261,6 +261,7 @@ class Experiment(Base):
     added_on = Column(DateTime(timezone=False),
                       default=datetime.now,
                       nullable=False)
+    delta = Column(String(), nullable=True)
     machine_name = Column(Text(), nullable=True)
 
 class Task(Base):
@@ -910,7 +911,8 @@ class Database(object):
     def add(self, obj, timeout=0, package="", options="", priority=1,
             custom="", machine="", platform="", tags=None,
             memory=False, enforce_timeout=False, clock=None,
-            name=None, repeat=None, added_on=None, status=TASK_PENDING):
+            name=None, repeat=None, added_on=None, status=TASK_PENDING,
+            delta=None):
         """Add a task to database.
         @param obj: object to add (File or URL).
         @param timeout: selected timeout.
@@ -969,10 +971,11 @@ class Database(object):
             task = Task(obj.url)
 
         # Create an experiment
-        experiment = Experiment(name=name)
+        experiment = Experiment(name=name, delta=delta)
         session.add(experiment)
         try:
             session.commit()
+            session.refresh(experiment)
         except SQLAlchemyError as e:
             log.debug("Database error adding experiment: {0}".format(e))
             session.close()
@@ -1030,8 +1033,8 @@ class Database(object):
     def add_path(self, file_path, timeout=0, package="", options="",
                  priority=1, custom="", machine="", platform="", tags=None,
                  memory=False, enforce_timeout=False, clock=None,
-                 experiment=None, repeat=None, added_on=None, status=TASK_PENDING,
-                 name=""):
+                 experiment=None, repeat=None, added_on=None,
+                 status=TASK_PENDING, name="", delta=None):
         """Add a task to database from file path.
         @param file_path: sample path.
         @param timeout: selected timeout.
@@ -1058,13 +1061,14 @@ class Database(object):
 
         return self.add(File(file_path), timeout, package, options, priority,
                         custom, machine, platform, tags, memory,
-                        enforce_timeout, clock, name, repeat, added_on, status)
+                        enforce_timeout, clock, name, repeat, added_on, status,
+                        delta)
 
     @classlock
     def add_url(self, url, timeout=0, package="", options="", priority=1,
                 custom="", machine="", platform="", tags=None, memory=False,
                 enforce_timeout=False, clock=None, name=None, repeat=None,
-                added_on=None, status=TASK_PENDING):
+                added_on=None, status=TASK_PENDING, delta=None):
         """Add a task to database from url.
         @param url: url.
         @param timeout: selected timeout.
@@ -1089,7 +1093,7 @@ class Database(object):
         return self.add(URL(url), timeout, package, options, priority,
                         custom, machine, platform, tags, memory,
                         enforce_timeout, clock, name, repeat, added_on,
-                        status)
+                        status, delta)
 
     @classlock
     def start_task(self, task_id):
@@ -1153,12 +1157,13 @@ class Database(object):
             task.started_on = None
             task.completed_on = None
 
+            # If specified use the delta that has been provided, otherwise
+            # fall back on the delta set for this experiment.
             if delta is None:
-                # By default schedule the next day at the same time.
-                task.added_on = task.added_on + timedelta(days=1)
-            else:
-                # But also allow scheduling X seconds after the original task.
-                task.added_on = task.added_on + timedelta(seconds=delta)
+                delta = time_duration(task.experiment.delta)
+
+            # Schedule the next task.
+            task.added_on = task.added_on + timedelta(seconds=delta)
 
             if timeout is not None:
                 task.timeout = timeout
@@ -1296,7 +1301,7 @@ class Database(object):
         return True
 
     @classlock
-    def update_experiment(self, name, timeout=None):
+    def update_experiment(self, name, delta=None, timeout=None):
         """Update fields of an experiment.
 
         The updated values will be reflected when the next analysis takes
@@ -1304,11 +1309,15 @@ class Database(object):
         task.
 
         @param name: Experiment name.
+        @param delta: Relative time to start the next analysis.
         @param timeout: Duration of the analysis.
         """
         session = self.Session()
         try:
             experiment = session.query(Experiment).filter_by(name=name).first()
+
+            if delta is not None:
+                experiment.delta = delta
 
             if timeout is not None:
                 experiment.tasks[-1].timeout = timeout
