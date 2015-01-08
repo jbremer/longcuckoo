@@ -1296,7 +1296,35 @@ class Database(object):
         return True
 
     @classlock
+    def update_experiment(self, name, timeout=None):
+        """Update fields of an experiment.
+
+        The updated values will be reflected when the next analysis takes
+        place, e.g., the timeout is only changed for the upcoming analysis
+        task.
+
+        @param name: Experiment name.
+        @param timeout: Duration of the analysis.
+        """
+        session = self.Session()
+        try:
+            experiment = session.query(Experiment).filter_by(name=name).first()
+
+            if timeout is not None:
+                experiment.tasks[-1].timeout = timeout
+
+            session.commit()
+        except SQLAlchemyError as e:
+            log.debug("Database error updating experiment: {0}".format(e))
+            session.rollback()
+            return False
+        finally:
+            session.close()
+        return True
+
+    @classlock
     def delete_experiment(self, experiment_id):
+        """Delete experiment by identifier."""
         session = self.Session()
         try:
             experiment = session.query(Experiment).get(experiment_id)

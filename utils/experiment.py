@@ -72,6 +72,7 @@ class ExperimentManager(object):
         "machine_cronjob": "",
         "allocate_ipaddr": "| verbose",
         "allocate_eggname": "| verbose",
+        "timeout": "name | timeout verbose",
     }
 
     def check_arguments(self, action, args, kwargs):
@@ -151,6 +152,17 @@ class ExperimentManager(object):
         task = db.schedule(tasks[0].id, delta=time_duration(delta),
                            timeout=time_duration(timeout))
         print "Scheduled experiment '%s' with ID: %d" % (name, task.id)
+
+    def handle_timeout(self, name, timeout=None):
+        """Get or set the duration of an analysis for the upcoming analysis
+        of an experiment.
+
+        name    = Experiment name.
+        [timeout = Updated duration of the analysis.]
+
+        """
+        if timeout is not None:
+            db.update_experiment(name, timeout=timeout)
 
     def handle_count_available_machines(self, verbose=True):
         """Count the available machines for longterm analysis.
