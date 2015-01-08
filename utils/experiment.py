@@ -66,12 +66,13 @@ class ExperimentManager(object):
     ARGUMENTS = {
         "help": "action",
         "list": "",
-        "new": "name path | timeout tags options",
+        "new": "name path | timeout delta tags options",
         "schedule": "name | delta timeout",
         "count_available_machines": "| verbose",
         "machine_cronjob": "",
         "allocate_ipaddr": "| verbose",
         "allocate_eggname": "| verbose",
+        "delta": "name | delta verbose",
         "timeout": "name | timeout verbose",
     }
 
@@ -115,12 +116,14 @@ class ExperimentManager(object):
         for experiment in db.list_experiments():
             print fmt % dict(name=experiment.name, count=len(experiment.tasks))
 
-    def handle_new(self, name, path, timeout="1d", tags="", options=""):
+    def handle_new(self, name, path, timeout="1d", delta="1d", tags="",
+                   options=""):
         """Create a new experiment.
 
         name    = Experiment name.
         path    = File path.
         [timeout = Duration of the analysis.]
+        [delta   = Relative time between the last and the next task.]
         [tags    = Extra tags.]
         [options = Extra options.]
 
@@ -131,7 +134,8 @@ class ExperimentManager(object):
                               tags="longterm," + tags,
                               options=options,
                               name=name,
-                              repeat=TASK_RECURRENT)
+                              repeat=TASK_RECURRENT,
+                              delta=delta)
 
         print "Created experiment '%s' with ID: %d" % (name, task_id)
 
@@ -152,6 +156,17 @@ class ExperimentManager(object):
         task = db.schedule(tasks[0].id, delta=time_duration(delta),
                            timeout=time_duration(timeout))
         print "Scheduled experiment '%s' with ID: %d" % (name, task.id)
+
+    def handle_delta(self, name, delta=None):
+        """Get or set the delta between multiple analyses for the upcoming
+        analysis of an experiment.
+
+        name    = Experiment name.
+        [delta   = Updated relative time after the last task.]
+
+        """
+        if delta is not None:
+            db.update_experiment(name, delta=delta)
 
     def handle_timeout(self, name, timeout=None):
         """Get or set the duration of an analysis for the upcoming analysis
