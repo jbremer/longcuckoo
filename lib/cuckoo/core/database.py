@@ -301,7 +301,7 @@ class Task(Base):
     experiment_id = Column(Integer, ForeignKey("experiments.id"), nullable=False)
 
     sample = relationship("Sample", backref="tasks")
-    experiment = relationship("Experiment", backref="tasks", lazy="joined")
+    experiment = relationship("Experiment", backref="tasks", lazy="dynamic")
 
     guest = relationship("Guest", uselist=False, backref="tasks", cascade="save-update, delete")
     errors = relationship("Error", backref="tasks", cascade="save-update, delete")
@@ -1187,7 +1187,7 @@ class Database(object):
         try:
             experiments = session.query(Experiment).options(joinedload("tasks")).order_by(Experiment.id).all()
             for experiment in experiments:
-                experiment.last_task = experiment.tasks[-1]
+                experiment.last_task = experiment.tasks.order_by(Task.id.desc()).first()
         except SQLAlchemyError as e:
             log.debug("Database error listing experiments: {0}".format(e))
             return []
@@ -1320,7 +1320,8 @@ class Database(object):
                 experiment.delta = delta
 
             if timeout is not None:
-                experiment.tasks[-1].timeout = timeout
+                task = experiment.tasks.order_by(Task.id.desc()).first()
+                task.timeout = timeout
 
             session.commit()
         except SQLAlchemyError as e:
