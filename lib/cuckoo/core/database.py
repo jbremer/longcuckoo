@@ -257,7 +257,7 @@ class Experiment(Base):
     __tablename__ = "experiments"
 
     id = Column(Integer(), primary_key=True)
-    name = Column(Text(), nullable=False)
+    name = Column(Text(), nullable=False, unique=True)
     added_on = Column(DateTime(timezone=False),
                       default=datetime.now,
                       nullable=False)
