@@ -148,7 +148,7 @@ class ExperimentManager(object):
 
         """
         experiment = db.view_experiment(name=name)
-        tasks = db.list_tasks(experiment.id, order_by="id desc")
+        tasks = db.list_tasks(experiment=experiment.id, order_by="id desc")
         if not tasks:
             print "Tasks with experiment name '%s' not found.." % name
             exit(1)
