@@ -300,7 +300,7 @@ class Task(Base):
     experiment_id = Column(Integer, ForeignKey("experiments.id"), nullable=False)
 
     sample = relationship("Sample", backref="tasks")
-    experiment = relationship("Experiment", backref="tasks", lazy="dynamic")
+    experiment = relationship("Experiment", backref=backref("tasks", lazy="dynamic"), lazy="joined")
 
     guest = relationship("Guest", uselist=False, backref="tasks", cascade="save-update, delete")
     errors = relationship("Error", backref="tasks", cascade="save-update, delete")
