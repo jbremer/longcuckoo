@@ -256,7 +256,7 @@ class Experiment(Base):
     __tablename__ = "experiments"
 
     id = Column(Integer(), primary_key=True)
-    name = Column(Text(), nullable=False, unique=True)
+    name = Column(Text(), nullable=True, unique=True)
     added_on = Column(DateTime(timezone=False),
                       default=datetime.now,
                       nullable=False)
@@ -937,7 +937,7 @@ class Database(object):
                  priority=1, custom="", machine="", platform="", tags=None,
                  memory=False, enforce_timeout=False, clock=None,
                  experiment=None, repeat=None, added_on=None,
-                 status=TASK_PENDING, name="", delta=None):
+                 status=TASK_PENDING, name=None, delta=None):
         """Add a task to database from file path.
         @param file_path: sample path.
         @param timeout: selected timeout.
