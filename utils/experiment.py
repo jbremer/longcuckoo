@@ -72,8 +72,8 @@ class ExperimentManager(object):
         "machine_cronjob": "",
         "allocate_ipaddr": "| verbose",
         "allocate_eggname": "| verbose",
-        "delta": "name | delta verbose",
-        "timeout": "name | timeout verbose",
+        "delta": "name | delta",
+        "timeout": "name | timeout",
     }
 
     def check_arguments(self, action, args, kwargs):
