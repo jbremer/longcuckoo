@@ -425,6 +425,7 @@ def experiment_create_file():
     memory = request.forms.get("memory", False)
     clock = request.forms.get("clock", None)
     name = request.forms.get("name", None)
+    delta = request.forms.get("delta", None)
     if memory:
         memory = True
     enforce_timeout = request.forms.get("enforce_timeout", False)
@@ -447,6 +448,7 @@ def experiment_create_file():
         clock=clock,
         name=name,
         repeat=TASK_RECURRENT,
+        delta=delta,
     )
 
     if task_id:
@@ -470,6 +472,7 @@ def experiment_create_url():
     custom = request.forms.get("custom", "")
     memory = request.forms.get("memory", False)
     name = request.forms.get("name", None)
+    delta = request.forms.get("delta", None)
     if memory:
         memory = True
     enforce_timeout = request.forms.get("enforce_timeout", False)
@@ -492,6 +495,7 @@ def experiment_create_url():
         clock=clock,
         name=name,
         repeat=TASK_RECURRENT,
+        delta=delta,
     )
 
     if task_id:
