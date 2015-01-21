@@ -22,6 +22,7 @@ sys.path.append(os.path.join(os.path.abspath(os.path.dirname(__file__)), ".."))
 
 from lib.cuckoo.common.constants import CUCKOO_VERSION, CUCKOO_ROOT
 from lib.cuckoo.common.utils import store_temp_file, delete_folder
+from lib.cuckoo.common.utils import time_duration
 from lib.cuckoo.core.database import Database, TASK_RECURRENT
 
 # Global DB pointer.
@@ -502,6 +503,28 @@ def experiment_create_url():
         response["experiment_id"] = db.view_task(task_id).experiment_id
 
     response["task_id"] = task_id
+    return jsonize(response)
+
+@route("/v1/experiment/schedule/<name>", method="POST")
+def experiment_schedule(name):
+    response = {}
+
+    delta = request.forms.get("delta", "1d")
+    timeout = request.forms.get("timeout", "1d")
+
+    experiment = db.view_experiment(name=name)
+    if not experiment:
+        return HTTPError(404, name)
+
+    last_task = experiment.tasks.order_by("id desc").first()
+    if not last_task:
+        return HTTPError(404, name)
+
+    task = db.schedule(last_task.id, delta=time_duration(delta),
+                       timeout=time_duration(timeout))
+
+    response["experiment_id"] = experiment.id
+    response["task_id"] = task.id
     return jsonize(response)
 
 if __name__ == "__main__":
