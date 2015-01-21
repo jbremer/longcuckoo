@@ -22,7 +22,7 @@ sys.path.append(os.path.join(os.path.abspath(os.path.dirname(__file__)), ".."))
 
 from lib.cuckoo.common.constants import CUCKOO_VERSION, CUCKOO_ROOT
 from lib.cuckoo.common.utils import store_temp_file, delete_folder
-from lib.cuckoo.core.database import Database
+from lib.cuckoo.core.database import Database, TASK_RECURRENT
 
 # Global DB pointer.
 db = Database()
@@ -408,6 +408,97 @@ def task_screenshots(task=0, screenshot=None):
             return zip_data.getvalue()
     else:
         return HTTPError(404, folder_path)
+
+@route("/v1/experiment/create/file", method="POST")
+def experiment_create_file():
+    response = {}
+
+    data = request.files.file
+    package = request.forms.get("package", "")
+    timeout = request.forms.get("timeout", "")
+    priority = request.forms.get("priority", 1)
+    options = request.forms.get("options", "")
+    machine = request.forms.get("machine", "")
+    platform = request.forms.get("platform", "")
+    tags = request.forms.get("tags", "")
+    custom = request.forms.get("custom", "")
+    memory = request.forms.get("memory", False)
+    clock = request.forms.get("clock", None)
+    name = request.forms.get("name", None)
+    if memory:
+        memory = True
+    enforce_timeout = request.forms.get("enforce_timeout", False)
+    if enforce_timeout:
+        enforce_timeout = True
+
+    temp_file_path = store_temp_file(data.file.read(), data.filename)
+    task_id = db.add_path(
+        file_path=temp_file_path,
+        package=package,
+        timeout=timeout,
+        priority=priority,
+        options=options,
+        machine=machine,
+        platform=platform,
+        tags="longterm," + tags,
+        custom=custom,
+        memory=memory,
+        enforce_timeout=enforce_timeout,
+        clock=clock,
+        name=name,
+        repeat=TASK_RECURRENT,
+    )
+
+    if task_id:
+        response["experiment_id"] = db.view_task(task_id).experiment_id
+
+    response["task_id"] = task_id
+    return jsonize(response)
+
+@route("/v1/experiment/create/url", method="POST")
+def experiment_create_url():
+    response = {}
+
+    url = request.forms.get("url")
+    package = request.forms.get("package", "")
+    timeout = request.forms.get("timeout", "")
+    priority = request.forms.get("priority", 1)
+    options = request.forms.get("options", "")
+    machine = request.forms.get("machine", "")
+    platform = request.forms.get("platform", "")
+    tags = request.forms.get("tags", "")
+    custom = request.forms.get("custom", "")
+    memory = request.forms.get("memory", False)
+    name = request.forms.get("name", None)
+    if memory:
+        memory = True
+    enforce_timeout = request.forms.get("enforce_timeout", False)
+    if enforce_timeout:
+        enforce_timeout = True
+    clock = request.forms.get("clock", None)
+
+    task_id = db.add_url(
+        url=url,
+        package=package,
+        timeout=timeout,
+        options=options,
+        priority=priority,
+        machine=machine,
+        platform=platform,
+        tags="longterm," + tags,
+        custom=custom,
+        memory=memory,
+        enforce_timeout=enforce_timeout,
+        clock=clock,
+        name=name,
+        repeat=TASK_RECURRENT,
+    )
+
+    if task_id:
+        response["experiment_id"] = db.view_task(task_id).experiment_id
+
+    response["task_id"] = task_id
+    return jsonize(response)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
