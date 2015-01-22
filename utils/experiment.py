@@ -148,12 +148,12 @@ class ExperimentManager(object):
 
         """
         experiment = db.view_experiment(name=name)
-        tasks = db.list_tasks(experiment=experiment.id, order_by="id desc")
-        if not tasks:
+        last_task = experiment.tasks.order_by("id desc").first()
+        if not last_task:
             print "Tasks with experiment name '%s' not found.." % name
             exit(1)
 
-        task = db.schedule(tasks[0].id, delta=time_duration(delta),
+        task = db.schedule(last_task.id, delta=time_duration(delta),
                            timeout=time_duration(timeout))
         print "Scheduled experiment '%s' with ID: %d" % (name, task.id)
 
