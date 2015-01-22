@@ -910,7 +910,7 @@ class Database(object):
                 task.tags.append(tag)
 
         if clock:
-            if isinstance(clock, str) or isinstance(clock, unicode):
+            if isinstance(clock, basestring):
                 try:
                     task.clock = datetime.strptime(clock, "%m-%d-%Y %H:%M:%S")
                 except ValueError:
@@ -1123,7 +1123,7 @@ class Database(object):
             if details:
                 search = search.options(joinedload("guest"), joinedload("errors"), joinedload("tags"))
             if experiment:
-                search = search.filter(Task.experiment_id == experiment)
+                search = search.filter_by(experiment_id=experiment)
             if sample_id is not None:
                 search = search.filter_by(sample_id=sample_id)
             if completed_after:
