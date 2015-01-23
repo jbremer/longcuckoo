@@ -437,7 +437,7 @@ def experiment_create_file():
     task_id = db.add_path(
         file_path=temp_file_path,
         package=package,
-        timeout=timeout,
+        timeout=time_duration(timeout),
         priority=priority,
         options=options,
         machine=machine,
@@ -449,7 +449,7 @@ def experiment_create_file():
         clock=clock,
         name=name,
         repeat=TASK_RECURRENT,
-        delta=delta,
+        delta=time_duration(delta),
     )
 
     if task_id:
@@ -484,7 +484,7 @@ def experiment_create_url():
     task_id = db.add_url(
         url=url,
         package=package,
-        timeout=timeout,
+        timeout=time_duration(timeout),
         options=options,
         priority=priority,
         machine=machine,
@@ -496,7 +496,7 @@ def experiment_create_url():
         clock=clock,
         name=name,
         repeat=TASK_RECURRENT,
-        delta=delta,
+        delta=time_duration(delta),
     )
 
     if task_id:
