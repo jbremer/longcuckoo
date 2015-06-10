@@ -16,7 +16,7 @@ try:
     from lib.cuckoo.core.startup import check_working_directory, check_configs
     from lib.cuckoo.core.startup import check_version, create_structure
     from lib.cuckoo.core.startup import init_logging, init_modules
-    from lib.cuckoo.core.startup import init_tasks, init_yara
+    from lib.cuckoo.core.startup import init_config, init_tasks, init_yara
     from lib.cuckoo.core.scheduler import Scheduler
     from lib.cuckoo.core.resultserver import ResultServer
 
@@ -54,6 +54,7 @@ def cuckoo_init(quiet=False, debug=False, artwork=False, test=False):
     elif debug:
         log.setLevel(logging.DEBUG)
 
+    init_config()
     init_modules()
     init_tasks()
     init_yara()

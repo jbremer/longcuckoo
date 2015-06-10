@@ -62,6 +62,15 @@ tasks_tags = Table(
     Column("tag_id", Integer, ForeignKey("tags.id"))
 )
 
+class Configuration(Base):
+    """Cuckoo configuration values."""
+    __tablename__ = "config"
+
+    id = Column(Integer(), primary_key=True)
+    key = Column(Text(), nullable=False)
+    type_ = Column(Text(), nullable=True)
+    value = Column(Text(), nullable=True)
+
 class Machine(Base):
     """Configured virtual machines to be used as guests."""
     __tablename__ = "machines"
@@ -432,6 +441,78 @@ class Database(object):
         """
         instance = session.query(model).filter_by(**kwargs).first()
         return instance or model(**kwargs)
+
+    def _config_unserialize(self, type_, value):
+        """Convert the value to its original type.
+        @param type_: type
+        @param value: value
+        """
+        types = {
+            "bool": lambda x: True if x == "true" else False,
+            "int": int,
+            "str": str,
+        }
+        if type_ not in types:
+            log.warning("Invalid configuration type: %s", type_)
+            return value
+
+        return types[type_](value)
+
+    def config_get(self, key):
+        """Get the value of a configuration entry.
+        @param key: key of the configuration entry
+        @return: value of the configuration entry
+        """
+        session = self.Session()
+        try:
+            row = session.query(Configuration).filter_by(key=key).first()
+        except SQLAlchemyError as e:
+            log.debug("Configuration value not set (%s): {0}".format(key, e))
+            return None
+        finally:
+            session.close()
+
+        if row:
+            return self._config_unserialize(row.type_, row.value)
+
+        return None
+
+    def config_all(self):
+        """Return all configuration entries from the database."""
+        session = self.Session()
+        try:
+            entries = session.query(Configuration).all()
+        except SQLAlchemyError as e:
+            log.debug("No configuration entries found: {0}".format(e))
+            return []
+        finally:
+            session.close()
+
+        ret = {}
+        for row in entries:
+            ret[row.key] = self._config_unserialize(row.type_, row.value)
+
+        return ret
+
+    def config_set(self, key, value):
+        """Set the value of a configuration entry.
+        @param key: key of the configuration entry
+        @param value: value of the configuration entry
+        """
+        session = self.Session()
+        try:
+            entry = self._get_or_create(session, Configuration, key=key)
+            entry.type_ = value.__class__.__name__
+            entry.value = value
+            session.add(entry)
+            session.commit()
+        except SQLAlchemyError as e:
+            log.debug("Configuration value not set (%s): {0}".format(key, e))
+            session.rollback()
+            return None
+        finally:
+            session.close()
+        return value
 
     def clean_machines(self):
         """Clean old stored machines and related tables."""

@@ -160,6 +160,31 @@ def init_logging():
 
     log.setLevel(logging.INFO)
 
+def init_config():
+    """Read configuration from the configuration files and update each entry
+    in the database."""
+    db = Database()
+
+    log.debug("Initializing configuration..")
+    config = db.config_all()
+
+    for fname in os.listdir(os.path.join(CUCKOO_ROOT, "conf")):
+        basename, ext = os.path.splitext(fname)
+        if ext != ".conf":
+            continue
+
+        cfg = Config(basename)
+
+        for section, values in cfg.sections.items():
+            for key, value in values.items():
+                attr = "%s.%s.%s" % (basename, section, key)
+                if attr in config and config[attr] == value:
+                    continue
+
+                log.debug("Updating configuration %s to '%s' (from '%s')",
+                          attr, value, config.get(attr, ''))
+                db.config_set(attr, value)
+
 def init_tasks():
     """Check tasks and reschedule uncompleted ones."""
     db = Database()

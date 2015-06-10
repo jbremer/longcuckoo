@@ -9,7 +9,29 @@ from lib.cuckoo.common.constants import CUCKOO_ROOT
 from lib.cuckoo.common.exceptions import CuckooOperationalError
 from lib.cuckoo.common.objects import Dictionary
 
-class Config:
+class ConfigSection(object):
+    def __init__(self, file_name, section, items):
+        self.file_name = file_name
+        self.section = section
+        self.items = items
+
+    def __getattr__(self, key):
+        attr = "%s.%s.%s" % (self.file_name, self.section, key)
+
+        # We make one exception here, namely, for the database connection.
+        if self.file_name == "cuckoo" and self.section == "database":
+            return self.items[key]
+
+        # Recursive dependencies and all that.
+        from lib.cuckoo.core.database import Database
+        return Database().config_get(attr)
+
+    get = __getitem__ = __getattr__
+
+    def __contains__(self, key):
+        return self.get(key) is not None
+
+class Config(object):
     """Configuration file parser."""
 
     def __init__(self, file_name="cuckoo", cfg=None):
@@ -24,8 +46,10 @@ class Config:
         else:
             config.read(os.path.join(CUCKOO_ROOT, "conf", "%s.conf" % file_name))
 
+        self.sections = {}
+
         for section in config.sections():
-            setattr(self, section, Dictionary())
+            self.sections[section] = Dictionary()
             for name, raw_value in config.items(section):
                 try:
                     # Ugly fix to avoid '0' and '1' to be parsed as a
@@ -42,7 +66,10 @@ class Config:
                     except ValueError:
                         value = config.get(section, name)
 
-                setattr(getattr(self, section), name, value)
+                self.sections[section][name] = value
+
+            cs = ConfigSection(file_name, section, self.sections[section])
+            setattr(self, section, cs)
 
     def get(self, section):
         """Get option.
