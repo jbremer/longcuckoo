@@ -26,7 +26,13 @@ class ConfigSection(object):
         from lib.cuckoo.core.database import Database
         return Database().config_get(attr)
 
-    get = __getitem__ = __getattr__
+    __getitem__ = __getattr__
+
+    def get(self, key, default=None):
+        value = self.__getitem__(key)
+        if value is None:
+            value = default
+        return value
 
     def __contains__(self, key):
         return self.get(key) is not None
