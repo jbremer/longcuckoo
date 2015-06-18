@@ -32,7 +32,7 @@ while [ "$("$EXPERIMENT" count-available-machines verbose=false)" -lt 5 ]; do
     IPADDR="$("$EXPERIMENT" allocate-ipaddr verbose=false)"
     EGGNAME="$("$EXPERIMENT" allocate-eggname verbose=false)"
     vmcloak-clone -r --bird bird0 --hostonly-ip "$IPADDR" \\
-        --cuckoo "$CUCKOO" "$EGGNAME" --tags longterm
+        --cuckoo "$CUCKOO" "$EGGNAME" --tags longterm --cpu-count %(cpucount)s
 done
 """
 
@@ -191,16 +191,19 @@ class ExperimentManager(object):
         else:
             print db.count_machines_available()
 
-    def handle_machine_cronjob(self, action="dump", path=None):
+    def handle_machine_cronjob(self, action="dump", cpucount=1, path=None):
         """Manage the machine cronjob - for provisioning virtual machines
         for longterm analysis.
 
-        [action  = Action to perform.]
-        [path    = Cronjob path in install mode.]
+        [action   = Action to perform.]
+        [path     = Cronjob path in install mode.]
+        [cpucount = CPU Count for the Virtual Machines.]
 
         """
         cuckoo = os.path.abspath(os.path.join(__file__, "..", ".."))
-        cronjob = MACHINE_CRONTAB.strip() % dict(cuckoo=cuckoo)
+
+        args = dict(cuckoo=cuckoo, cpucount=cpucount)
+        cronjob = MACHINE_CRONTAB.strip() % args
 
         if action == "dump":
             print cronjob
