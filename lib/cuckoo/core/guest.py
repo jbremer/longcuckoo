@@ -50,7 +50,7 @@ class GuestManager:
         log.debug("%s: waiting for status 0x%.04x", self.id, status)
 
         end = time.time() + self.timeout
-        self.server._set_timeout(self.timeout)
+        self.server._set_timeout(1)
 
         while True:
             # Check if we've passed the timeout.
@@ -179,11 +179,9 @@ class GuestManager:
         log.debug("%s: waiting for completion", self.id)
 
         end = time.time() + self.timeout
-        self.server._set_timeout(self.timeout)
+        self.server._set_timeout(1)
 
         while True:
-            time.sleep(1)
-
             # If the analysis hits the critical timeout, just return straight
             # away and try to recover the analysis results from the guest.
             if time.time() > end:
@@ -208,5 +206,7 @@ class GuestManager:
             else:
                 log.debug("%s: analysis not completed yet (status=%s)",
                           self.id, status)
+
+            time.sleep(1)
 
         self.server._set_timeout(None)
