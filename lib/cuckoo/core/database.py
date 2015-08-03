@@ -447,8 +447,13 @@ class Database(object):
         @param type_: type
         @param value: value
         """
+        bool_true = {
+            "true": True,
+            "1": True,
+        }
+
         types = {
-            "bool": lambda x: True if x == "true" else False,
+            "bool": lambda value: bool_true.get(value, False),
             "int": int,
             "str": str,
         }
