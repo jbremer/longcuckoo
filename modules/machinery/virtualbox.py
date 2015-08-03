@@ -96,6 +96,17 @@ class VirtualBox(Machinery):
                                          "machine: %s" % e)
 
             self._wait_status(label, self.SAVED)
+        else:
+            # It is quite possible that if a lot happens during the various
+            # longterm runs that the harddisk starts to scatter. Therefore
+            # optimize the harddisk right before every run.
+            hdd_uuid = self._vminfo(label).get("IDE-ImageUUID-0-0")
+            if hdd_uuid:
+                try:
+                    subprocess.check_call([self.options.virtualbox.path,
+                                           "modifyhd", hdd_uuid, "--compact"])
+                except subprocess.CalledProcessError as e:
+                    log.warning("Error optimizing HDD of VM %s: %s", label, e)
 
         try:
             args = [
