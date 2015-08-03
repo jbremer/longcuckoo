@@ -24,6 +24,10 @@ MACHINE_CRONTAB = """
 # user under which Cuckoo Sandbox runs).
 set -e
 
+# Provides an exclusive lock around the following code (which should never be
+# executed in parallel). Upon failure to obtain the lock it'll simply exit.
+(flock -nx 9 || exit 0
+
 CUCKOO="%(cuckoo)s"
 EXPERIMENT="$CUCKOO/utils/experiment.py"
 
@@ -34,6 +38,8 @@ while [ "$("$EXPERIMENT" count-available-machines verbose=false)" -lt 5 ]; do
     vmcloak-clone -r --bird bird0 --hostonly-ip "$IPADDR" \\
         --cuckoo "$CUCKOO" "$EGGNAME" --tags longterm --cpu-count %(cpucount)s
 done
+
+) 9>/var/lock/longtermvmprovision
 """
 
 def allocate_ip_address():
