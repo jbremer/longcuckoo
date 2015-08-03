@@ -189,8 +189,12 @@ class GuestManager:
 
             try:
                 status = self.server.get_status()
-            except Exception as e:
+            except socket.timeout as e:
                 log.debug("%s: error retrieving status: %s", self.id, e)
+                continue
+            except socket.error as e:
+                log.debug("%s: error retrieving status: %s", self.id, e)
+                time.sleep(1)
                 continue
 
             # React according to the returned status.
