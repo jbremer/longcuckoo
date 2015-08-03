@@ -13,7 +13,6 @@ sys.path.append(os.path.join(os.path.abspath(os.path.dirname(__file__)), ".."))
 from lib.cuckoo.core.database import Database, TASK_RECURRENT
 from lib.cuckoo.common.utils import time_duration
 
-
 MACHINE_CRONTAB = """
 #!/bin/sh
 # Copyright (C) 2010-2014 Cuckoo Foundation.
@@ -35,7 +34,7 @@ EXPERIMENT="$CUCKOO/utils/experiment.py"
 while [ "$("$EXPERIMENT" count-available-machines verbose=false)" -lt 5 ]; do
     IPADDR="$("$EXPERIMENT" allocate-ipaddr verbose=false)"
     EGGNAME="$("$EXPERIMENT" allocate-eggname verbose=false)"
-    vmcloak-clone -r --bird bird0 --hostonly-ip "$IPADDR" \\
+    vmcloak-clone -r --bird bird0 --hostonly-ip "$IPADDR" --vmmode longterm \\
         --cuckoo "$CUCKOO" "$EGGNAME" --tags longterm --cpu-count %(cpucount)s
 done
 
@@ -249,7 +248,6 @@ class ExperimentManager(object):
         else:
             print eggname
 
-
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("action", type=str, help="Action to perform")
@@ -284,7 +282,6 @@ def main():
         exit(1)
 
     getattr(em, "handle_%s" % action)(*args_, **kwargs)
-
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
