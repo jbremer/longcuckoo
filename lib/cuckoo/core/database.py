@@ -622,7 +622,7 @@ class Database(object):
             row = row.filter(Task.status == status)
             row = row.filter(Task.added_on <= datetime.now())
             row = row.filter(~Task.experiment_id.in_(q))
-            row = row.order_by("priority desc, tasks.added_on").first()
+            row = row.order_by(Task.priority.desc(), Task.added_on).first()
             if not row:
                 return None
 
