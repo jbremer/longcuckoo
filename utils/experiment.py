@@ -44,28 +44,40 @@ done
 def allocate_ip_address():
     """Allocate the next available IP address."""
     # TODO Unuglify this code.
-    # TODO Add multiple subnet support.
     ips = []
     for machine in db.list_machines():
-        ip = machine.ip.split(".")
-        if len(ip) != 4 or ip[0] != "192" or ip[1] != "168" or ip[2] != "56":
-            continue
+        ipa, ipb, ipc, ipd = machine.ip.split(".")
+        ips.append([int(ipa), int(ipb), int(ipc), int(ipd)])
 
-        ips.append(int(ip[3]))
+    max_ip = sorted(ips, reverse=True)[0]
 
-    next_ip = max(ips) + 1 if ips else 3
-    if next_ip == 254:
-        print "Ran out of IP addresses for this subnet.."
-        return
+    # Calculate the next IP address. When the lowest 8 bits of the IP address
+    # have reached .254, we iterate to the next /24 block. It is therefore
+    # assumed that upcoming /24 blocks are also within the same vboxnet, or
+    # otherwise the iptables routing will not work. (I.e., when creating new
+    # clones the new IP address may not lay in the same /24 and therefore IP
+    # routing is no longer functional).
+    # 192.168.56.42  -> 192.168.56.43
+    # 192.168.56.254 -> 192.168.57.1
+    if max_ip[3] == 254:
+        max_ip[2] += 1
+        max_ip[3] = 1
+    else:
+        max_ip[3] += 1
 
-    return "192.168.56.%d" % next_ip
-
+    return "%d.%d.%d.%d" % tuple(max_ip)
 
 def allocate_eggname():
     """Allocate the next available eggname."""
-    # TODO Add support for egg numbes with three digits.
-    return "egg%02d" % (len(db.list_machines()) + 1)
+    eggs = []
+    for machine in db.list_machines():
+        assert machine.name.startswith("egg_")
+        eggs.append(int(machine.name[4:]))
 
+    max_egg = sorted(eggs, reverse=True)[0]
+
+    # Calculate the next eggname.
+    return "egg_%04d" % (max_egg + 1)
 
 class ExperimentManager(object):
     ARGUMENTS = {
