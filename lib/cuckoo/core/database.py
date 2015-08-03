@@ -302,7 +302,8 @@ class Task(Base):
     completed_on = Column(DateTime(timezone=False), nullable=True)
     status = Column(Enum(TASK_PENDING, TASK_RUNNING, TASK_COMPLETED,
                          TASK_REPORTED, TASK_RECOVERED, TASK_SCHEDULED,
-                         TASK_UNSCHEDULED, name="status_type"),
+                         TASK_UNSCHEDULED, TASK_FAILED_ANALYSIS,
+                         TASK_FAILED_PROCESSING, name="status_type"),
                     server_default=TASK_PENDING,
                     nullable=False)
     sample_id = Column(Integer, ForeignKey("samples.id"), nullable=True)
@@ -1201,7 +1202,10 @@ class Database(object):
             search = session.query(Task)
 
             if status:
-                search = search.filter(Task.status.in_(status))
+                if isinstance(status, (tuple, list)):
+                    search = search.filter(Task.status.in_(status))
+                else:
+                    search = search.filter_by(status=status)
             if not_status:
                 search = search.filter(~Task.status.in_(not_status))
             if category:
