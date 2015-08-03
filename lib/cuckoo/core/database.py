@@ -80,8 +80,8 @@ class Machine(Base):
     label = Column(String(255), nullable=False)
     ip = Column(String(255), nullable=False)
     platform = Column(String(255), nullable=False)
-    tags = relationship("Tag", secondary=machines_tags, cascade="all, delete",
-                        single_parent=True, backref=backref("machine", cascade="all"))
+    tags = relationship("Tag", secondary=machines_tags, single_parent=True,
+                        backref=backref("machine"))
     interface = Column(String(255), nullable=True)
     snapshot = Column(String(255), nullable=True)
     locked_by = Column(Integer(), nullable=True, default=None)
@@ -285,9 +285,8 @@ class Task(Base):
     custom = Column(String(255), nullable=True)
     machine = Column(String(255), nullable=True)
     package = Column(String(255), nullable=True)
-    tags = relationship("Tag", secondary=tasks_tags, cascade="all, delete",
-                        single_parent=True, backref=backref("task", cascade="all"),
-                        lazy="subquery")
+    tags = relationship("Tag", secondary=tasks_tags, single_parent=True,
+                        backref=backref("task"), lazy="subquery")
     options = Column(String(255), nullable=True)
     platform = Column(String(255), nullable=True)
     memory = Column(Boolean, nullable=False, default=False)
@@ -815,8 +814,8 @@ class Database(object):
         return machine
 
     def unlock_machine_by_experiment(self, experiment):
-        """Remove lock form a virtual machine.
-        @param label: virtual machine label
+        """Remove lock from a virtual machine.
+        @param experiment: experiment id
         @return: unlocked machine
         """
         session = self.Session()
