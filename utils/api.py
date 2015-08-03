@@ -527,6 +527,28 @@ def experiment_schedule(name):
     response["task_id"] = task.id
     return jsonize(response)
 
+@route("/v1/experiment/delete/<experiment_id>")
+def experiment_delete(experiment_id):
+    response = {}
+
+    if not db.unlock_machine_by_experiment(experiment_id):
+        response["success"] = False
+        response["message"] = "Unable to unlock machine of experiment."
+        return jsonize(response)
+
+    # We don't check the return value of the tasks_delete() function as the
+    # tasks may be deleted overtime while the experiment is still around.
+    for task in db.list_tasks(experiment=experiment_id):
+        tasks_delete(task.id)
+
+    if not db.delete_experiment(experiment_id):
+        response["success"] = False
+        response["message"] = "Unable to delete experiment."
+        return jsonize(response)
+
+    response["success"] = True
+    return jsonize(response)
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-H", "--host", help="Host to bind the API server on", default="localhost", action="store", required=False)
