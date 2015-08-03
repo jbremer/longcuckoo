@@ -41,6 +41,27 @@ class VirtualBox(Machinery):
         # Base checks.
         super(VirtualBox, self)._initialize_check()
 
+    def _vminfo(self, label):
+        """Fetch the state of this Virtual Machine into a dictionary."""
+        try:
+            output = subprocess.check_output([self.options.virtualbox.path,
+                                              "showvminfo", label,
+                                              "--machinereadable"])
+        except subprocess.CalledProcessError as e:
+            log.warning("Error obtaining Virtual Machine state: %s -> %s",
+                        label, e)
+            return {}
+
+        ret = {}
+        for line in output.split("\n"):
+            if "=" not in line:
+                continue
+
+            # Extract each key/value pair and remove leading/ending quotes.
+            key, value = line.split("=", 1)
+            ret[key.strip('"')] = value.strip('"')
+        return ret
+
     def start(self, label, revert=True):
         """Start a virtual machine.
         @param label: virtual machine name.
@@ -165,40 +186,14 @@ class VirtualBox(Machinery):
         @return: status string.
         """
         log.debug("Getting status for %s" % label)
-        status = None
-        try:
-            proc = subprocess.Popen([self.options.virtualbox.path,
-                                     "showvminfo",
-                                     label,
-                                     "--machinereadable"],
-                                    stdout=subprocess.PIPE,
-                                    stderr=subprocess.PIPE)
-            output, err = proc.communicate()
 
-            if proc.returncode != 0:
-                # It's quite common for virtualbox crap utility to exit with:
-                # VBoxManage: error: Details: code E_ACCESSDENIED (0x80070005)
-                # So we just log to debug this.
-                log.debug("VBoxManage returns error checking status for "
-                          "machine %s: %s", label, err)
-                status = self.ERROR
-        except OSError as e:
-            log.warning("VBoxManage failed to check status for machine %s: %s",
-                        label, e)
-            status = self.ERROR
-        if not status:
-            for line in output.split("\n"):
-                state = re.match(r"VMState=\"(\w+)\"", line, re.M|re.I)
-                if state:
-                    status = state.group(1)
-                    log.debug("Machine %s status %s" % (label, status))
-                    status = status.lower()
+        # Fetch the VMState variable obtained through the showvminfo command
+        # and if it fails, return error.
+        status = self._vminfo(label).get("VMState", self.ERROR).lower()
+
         # Report back status.
-        if status:
-            self.set_status(label, status)
-            return status
-        else:
-            raise CuckooMachineError("Unable to get status for %s" % label)
+        self.set_status(label, status)
+        return status
 
     def dump_memory(self, label, path):
         """Takes a memory dump.
