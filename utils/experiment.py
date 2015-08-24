@@ -52,7 +52,7 @@ def allocate_ip_address():
     if ips:
         max_ip = sorted(ips, reverse=True)[0]
     else:
-        max_ip = 192, 168, 56, 2
+        max_ip = [192, 168, 56, 2]
 
     # Calculate the next IP address. When the lowest 8 bits of the IP address
     # have reached .254, we iterate to the next /24 block. It is therefore
