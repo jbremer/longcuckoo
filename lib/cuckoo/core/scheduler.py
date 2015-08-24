@@ -255,6 +255,8 @@ class AnalysisManager(Thread):
         aux.start()
 
         try:
+            unlocked = False
+
             # Mark the selected analysis machine in the database as started.
             guest_log = Database().guest_start(self.task.id,
                                                self.machine.name,
@@ -273,6 +275,7 @@ class AnalysisManager(Thread):
                 machinery.start(self.machine.label, revert=is_first_task)
             finally:
                 machine_lock.release()
+                unlocked = True
 
             # Initialize the guest manager.
             # FIXME - The critical timeout options is analysis_timeout + 60 sec
@@ -289,9 +292,13 @@ class AnalysisManager(Thread):
             guest.wait_for_completion()
             succeeded = True
         except CuckooMachineError as e:
+            if not unlocked:
+                machine_lock.release()
             log.error(str(e), extra={"task_id": self.task.id})
             dead_machine = True
         except CuckooGuestError as e:
+            if not unlocked:
+                machine_lock.release()
             log.error(str(e), extra={"task_id": self.task.id})
         finally:
             # Stop Auxiliary modules.
