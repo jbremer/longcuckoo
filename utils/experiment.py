@@ -49,7 +49,10 @@ def allocate_ip_address():
         ipa, ipb, ipc, ipd = machine.ip.split(".")
         ips.append([int(ipa), int(ipb), int(ipc), int(ipd)])
 
-    max_ip = sorted(ips, reverse=True)[0]
+    if ips:
+        max_ip = sorted(ips, reverse=True)[0]
+    else:
+        max_ip = 192, 168, 56, 2
 
     # Calculate the next IP address. When the lowest 8 bits of the IP address
     # have reached .254, we iterate to the next /24 block. It is therefore
@@ -74,7 +77,10 @@ def allocate_eggname():
         assert machine.name.startswith("egg_")
         eggs.append(int(machine.name[4:]))
 
-    max_egg = sorted(eggs, reverse=True)[0]
+    if eggs:
+        max_egg = sorted(eggs, reverse=True)[0]
+    else:
+        max_egg = 0
 
     # Calculate the next eggname.
     return "egg_%04d" % (max_egg + 1)
