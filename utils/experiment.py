@@ -34,8 +34,9 @@ EXPERIMENT="$CUCKOO/utils/experiment.py"
 while [ "$("$EXPERIMENT" count-available-machines verbose=false)" -lt 5 ]; do
     IPADDR="$("$EXPERIMENT" allocate-ipaddr verbose=false)"
     EGGNAME="$("$EXPERIMENT" allocate-eggname verbose=false)"
-    vmcloak-clone -r --bird bird0 --hostonly-ip "$IPADDR" --vmmode longterm \\
-        --cuckoo "$CUCKOO" "$EGGNAME" --tags longterm --cpu-count %(cpucount)s
+    vmcloak-clone -r --bird winxp_bird --hostonly-ip "$IPADDR" \\
+        --vmmode longterm --cuckoo "$CUCKOO" --tags longterm \\
+        --cpu-count %(cpucount)s "$EGGNAME"
 done
 
 ) 9>/var/lock/longtermvmprovision
@@ -74,8 +75,8 @@ def allocate_eggname():
     """Allocate the next available eggname."""
     eggs = []
     for machine in db.list_machines():
-        assert machine.name.startswith("egg_")
-        eggs.append(int(machine.name[4:]))
+        assert machine.name.startswith("winxp_")
+        eggs.append(int(machine.name[6:]))
 
     if eggs:
         max_egg = sorted(eggs, reverse=True)[0]
@@ -83,7 +84,7 @@ def allocate_eggname():
         max_egg = 0
 
     # Calculate the next eggname.
-    return "egg_%04d" % (max_egg + 1)
+    return "winxp_%04d" % (max_egg + 1)
 
 class ExperimentManager(object):
     ARGUMENTS = {
