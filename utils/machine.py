@@ -13,6 +13,7 @@ sys.path.append(os.path.join(os.path.abspath(os.path.dirname(__file__)), ".."))
 from lib.cuckoo.common.config import Config
 from lib.cuckoo.common.constants import CUCKOO_ROOT
 from lib.cuckoo.core.database import Database
+from lib.cuckoo.core.startup import init_config
 
 def update_conf(machinery, args, action=None):
     """Writes the new machine to the relevant configuration file."""
@@ -83,6 +84,8 @@ def main():
 
     if args.debug:
         log.setLevel(logging.DEBUG)
+
+    init_config(override=False)
 
     db = Database()
     conf = Config()

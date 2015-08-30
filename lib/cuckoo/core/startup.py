@@ -160,13 +160,15 @@ def init_logging():
 
     log.setLevel(logging.INFO)
 
-def init_config():
+def init_config(override=True):
     """Read configuration from the configuration files and update each entry
     in the database."""
     db = Database()
 
     log.debug("Initializing configuration..")
     config = db.config_all()
+    if not override and config:
+        return
 
     for fname in os.listdir(os.path.join(CUCKOO_ROOT, "conf")):
         basename, ext = os.path.splitext(fname)
