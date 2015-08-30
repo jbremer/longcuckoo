@@ -73,8 +73,9 @@ class VirtualBox(Machinery):
             raise CuckooMachineError("Trying to start an already "
                                      "started vm %s" % label)
 
+        vm_info = self.db.view_machine_by_label(label)
+
         if revert:
-            vm_info = self.db.view_machine_by_label(label)
             virtualbox_args = [self.options.virtualbox.path, "snapshot", label]
             if vm_info.snapshot:
                 log.debug("Using snapshot {0} for virtual machine "
@@ -126,6 +127,22 @@ class VirtualBox(Machinery):
                                      "in %s mode: %s" %
                                      (self.options.virtualbox.mode.upper(), e))
         self._wait_status(label, self.RUNNING)
+
+        if vm_info.rdp_port:
+            try:
+                args = [
+                    self.options.virtualbox.path, "controlvm",
+                    label, "vrde", "on",
+                ]
+                subprocess.check_output(args)
+
+                args = [
+                    self.options.virtualbox.path, "controlvm",
+                    label, "vrdeport", "%s" % vm_info.rdp_port,
+                ]
+                subprocess.check_output(args)
+            except subprocess.CalledProcessError:
+                log.exception("Error enabling VRDE support")
 
     def stop(self, label):
         """Stops a virtual machine.

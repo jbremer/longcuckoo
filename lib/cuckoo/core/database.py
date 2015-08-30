@@ -88,6 +88,7 @@ class Machine(Base):
     status = Column(String(255), nullable=True)
     resultserver_ip = Column(String(255), nullable=False)
     resultserver_port = Column(String(255), nullable=False)
+    rdp_port = Column(String(16), nullable=True)
 
     def __repr__(self):
         return "<Machine('{0}','{1}')>".format(self.id, self.name)
@@ -115,7 +116,7 @@ class Machine(Base):
         return json.dumps(self.to_dict())
 
     def __init__(self, name, label, ip, platform, interface, snapshot,
-                 resultserver_ip, resultserver_port, locked_by):
+                 resultserver_ip, resultserver_port, rdp_port, locked_by):
         self.name = name
         self.label = label
         self.ip = ip
@@ -124,6 +125,7 @@ class Machine(Base):
         self.snapshot = snapshot
         self.resultserver_ip = resultserver_ip
         self.resultserver_port = resultserver_port
+        self.rdp_port = rdp_port
         self.locked_by = locked_by
 
 class Tag(Base):
@@ -536,7 +538,8 @@ class Database(object):
             session.close()
 
     def add_machine(self, name, label, ip, platform, tags, interface,
-                    snapshot, resultserver_ip, resultserver_port, locked_by):
+                    snapshot, resultserver_ip, resultserver_port, rdp_port,
+                    locked_by):
         """Add a guest machine.
         @param name: machine id
         @param label: machine label
@@ -557,6 +560,7 @@ class Database(object):
                           snapshot=snapshot,
                           resultserver_ip=resultserver_ip,
                           resultserver_port=resultserver_port,
+                          rdp_port=rdp_port,
                           locked_by=locked_by)
         # Deal with tags format (i.e., foo,bar,baz)
         if tags:

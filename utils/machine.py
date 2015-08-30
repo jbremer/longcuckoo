@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Copyright (C) 2010-2014 Cuckoo Foundation.
+# Copyright (C) 2010-2015 Cuckoo Foundation.
 # This file is part of Cuckoo Sandbox - http://www.cuckoosandbox.org
 # See the file 'docs/LICENSE' for copying permission.
 
@@ -14,7 +14,7 @@ from lib.cuckoo.common.config import Config
 from lib.cuckoo.common.constants import CUCKOO_ROOT
 from lib.cuckoo.core.database import Database
 
-def update_conf(machinery, args):
+def update_conf(machinery, args, action=None):
     """Writes the new machine to the relevant configuration file."""
     path = os.path.join(CUCKOO_ROOT, "conf", "%s.conf" % machinery)
 
@@ -22,23 +22,30 @@ def update_conf(machinery, args):
     for line in open(path, "rb"):
         line = line.strip()
 
-        if line.split("=")[0].strip() == "machines":
-            # If there are already one or more labels then append the new
-            # label to the list, otherwise make a new list.
-            if line.split("=", 1)[1].strip():
-                line += ", %s" % args.vmname
-            else:
-                line += " %s" % args.vmname
+        if "=" in line and line.split("=")[0].strip() == "machines":
+            # Parse all existing labels.
+            labels = line.split("=", 1)[1]
+            labels = [label.strip() for label in labels.split(",")]
+
+            if action == "add":
+                labels.append(args.vmname)
+            elif action == "delete":
+                if args.vmname in labels:
+                    labels.remove(args.vmname)
+
+            line = "machines = %s" % ", ".join(labels)
 
         lines.append(line)
 
-    lines += [
-        "",
-        "[%s]" % args.vmname,
-        "label = %s" % args.vmname,
-        "platform = %s" % args.platform,
-        "ip = %s" % args.ip,
-    ]
+    if action == "add":
+        lines += [
+            "",
+            "[%s]" % args.vmname,
+            "label = %s" % args.vmname,
+            "platform = %s" % args.platform,
+            "ip = %s" % args.ip,
+            "rdp_port = %s" % args.rdp_port,
+        ]
 
     if args.snapshot:
         lines.append("snapshot = %s" % args.snapshot)
@@ -61,7 +68,9 @@ def main():
     parser.add_argument("vmname", type=str, help="Name of the Virtual Machine.")
     parser.add_argument("--debug", action="store_true", help="Debug log in case of errors.")
     parser.add_argument("--add", action="store_true", help="Add a Virtual Machine.")
+    parser.add_argument("--delete", action="store_true", help="Delete a Virtual Machine.")
     parser.add_argument("--ip", type=str, help="Static IP Address.")
+    parser.add_argument("--rdp_port", type=str, help="RDP Port.")
     parser.add_argument("--platform", type=str, default="windows", help="Guest Operating System.")
     parser.add_argument("--tags", type=str, help="Tags for this Virtual Machine.")
     parser.add_argument("--interface", type=str, help="Sniffer interface for this machine.")
@@ -85,12 +94,20 @@ def main():
         resultserver_port = conf.resultserver.port
 
     if args.add:
+        if db.view_machine(args.vmname):
+            sys.exit("A Virtual Machine with this name already exists!")
+
         db.add_machine(args.vmname, args.vmname, args.ip, args.platform,
                        args.tags, args.interface, args.snapshot,
-                       resultserver_ip, int(resultserver_port), None)
+                       resultserver_ip, int(resultserver_port), args.rdp_port,
+                       None)
         db.unlock_machine(args.vmname)
 
-        update_conf(conf.cuckoo.machinery, args)
+        update_conf(conf.cuckoo.machinery, args, action="add")
+
+    if args.delete:
+        # TODO Add a db.del_machine() function for runtime modification.
+        update_conf(conf.cuckoo.machinery, args, action="delete")
 
 if __name__ == "__main__":
     main()

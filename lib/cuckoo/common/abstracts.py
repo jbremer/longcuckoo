@@ -115,6 +115,8 @@ class Machinery(object):
                 # empty and use default behaviour.
                 machine.snapshot = options.get("snapshot")
 
+                machine.rdp_port = options.get("rdp_port", "")
+
                 # If configured, use specific resultserver IP and port,
                 # else use the default value.
                 opt_resultserver = self.options_globals.resultserver
@@ -146,6 +148,7 @@ class Machinery(object):
                                     snapshot=machine.snapshot,
                                     resultserver_ip=machine.resultserver_ip,
                                     resultserver_port=machine.resultserver_port,
+                                    rdp_port=machine.rdp_port,
                                     locked_by=machine.locked_by)
             except (AttributeError, CuckooOperationalError) as e:
                 log.warning("Configuration details about machine %s "
