@@ -45,8 +45,10 @@ def update_conf(machinery, args, action=None):
             "label = %s" % args.vmname,
             "platform = %s" % args.platform,
             "ip = %s" % args.ip,
-            "rdp_port = %s" % args.rdp_port,
         ]
+
+        if args.rdp_port:
+            lines.append("rdp_port = %s" % args.rdp_port)
 
     if args.snapshot:
         lines.append("snapshot = %s" % args.snapshot)
