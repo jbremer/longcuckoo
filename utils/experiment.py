@@ -34,9 +34,10 @@ EXPERIMENT="$CUCKOO/utils/experiment.py"
 while [ "$("$EXPERIMENT" count-available-machines verbose=false)" -lt 5 ]; do
     IPADDR="$("$EXPERIMENT" allocate-ipaddr verbose=false)"
     EGGNAME="$("$EXPERIMENT" allocate-eggname verbose=false)"
+    RDPPORT="$("$EXPERIMENT" allocate-rdp-port verbose=false)"
     vmcloak-clone -r --bird winxp_bird --hostonly-ip "$IPADDR" \\
         --vmmode longterm --cuckoo "$CUCKOO" --tags longterm \\
-        --cpu-count %(cpucount)s "$EGGNAME"
+        --cpu-count %(cpucount)s --vrde --vrde-port "$RDPPORT" "$EGGNAME"
 done
 
 ) 9>/var/lock/longtermvmprovision
@@ -86,6 +87,16 @@ def allocate_eggname():
     # Calculate the next eggname.
     return "winxp_%04d" % (max_egg + 1)
 
+def allocate_rdp_port():
+    """Allocate the next available RDP port.
+
+    Uses the eggname, extracts the integer, and prepends a one. As result
+    winxp_0001 will receive RDP port number 10001.
+    """
+    eggname = allocate_eggname()
+    assert eggname.startswith("winxp_")
+    return "1%s" % eggname[6:]
+
 class ExperimentManager(object):
     ARGUMENTS = {
         "help": "action",
@@ -96,6 +107,7 @@ class ExperimentManager(object):
         "machine_cronjob": "",
         "allocate_ipaddr": "| verbose",
         "allocate_eggname": "| verbose",
+        "allocate_rdp_port": "| verbose",
         "delta": "name | delta",
         "timeout": "name | timeout",
     }
@@ -252,8 +264,7 @@ class ExperimentManager(object):
             print ip
 
     def handle_allocate_eggname(self, verbose=True):
-        """Calculate the next available egg name. Doesn't actually allocate a
-        new egg name but merely calculates it.
+        """Calculate the next available egg name.
 
         [verbose = Verbose output.]
 
@@ -266,6 +277,21 @@ class ExperimentManager(object):
             print "Next egg name:", eggname
         else:
             print eggname
+
+    def handle_allocate_rdp_port(self, verbose=True):
+        """Calculate the next available RDP port based on the last egg name.
+
+        [verbose = Verbose output.]
+
+        """
+        rdp_port = allocate_rdp_port()
+        if not rdp_port:
+            exit(1)
+
+        if verbose:
+            print "Next RDP port:", rdp_port
+        else:
+            print rdp_port
 
 def main():
     parser = argparse.ArgumentParser()
