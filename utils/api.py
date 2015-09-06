@@ -339,7 +339,10 @@ def pcap_get(task_id):
 def machines_list():
     response = {}
 
-    machines = db.list_machines()
+    if "status" in request.GET:
+        machines = db.list_machines(status=request.GET["status"])
+    else:
+        machines = db.list_machines()
 
     response["machines"] = []
     for row in machines:
