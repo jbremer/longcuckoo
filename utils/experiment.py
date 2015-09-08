@@ -23,6 +23,9 @@ MACHINE_CRONTAB = """
 # user under which Cuckoo Sandbox runs).
 set -e
 
+# Cronjobs generally don't have much in $PATH.
+export PATH="$PATH:/usr/bin:/usr/local/bin"
+
 # Provides an exclusive lock around the following code (which should never be
 # executed in parallel). Upon failure to obtain the lock it'll simply exit.
 (flock -nx 9 || exit 0
