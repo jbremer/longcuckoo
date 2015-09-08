@@ -33,8 +33,8 @@ export PATH="$PATH:/usr/bin:/usr/local/bin"
 CUCKOO="%(cuckoo)s"
 EXPERIMENT="$CUCKOO/utils/experiment.py"
 
-# We strive to have at least 5 provisioned virtual machines at any point.
-while [ "$("$EXPERIMENT" count-available-machines verbose=false)" -lt 5 ]; do
+# We strive to have at least 20 provisioned virtual machines at any point.
+while [ "$("$EXPERIMENT" count-available-machines verbose=false)" -lt 20 ]; do
     IPADDR="$("$EXPERIMENT" allocate-ipaddr verbose=false)"
     EGGNAME="$("$EXPERIMENT" allocate-eggname verbose=false)"
     RDPPORT="$("$EXPERIMENT" allocate-rdp-port verbose=false)"
