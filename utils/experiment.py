@@ -39,8 +39,8 @@ while [ "$("$EXPERIMENT" count-available-machines verbose=false)" -lt 20 ]; do
     EGGNAME="$("$EXPERIMENT" allocate-eggname verbose=false)"
     RDPPORT="$("$EXPERIMENT" allocate-rdp-port verbose=false)"
     vmcloak-clone -r --bird winxp_bird --hostonly-ip "$IPADDR" \\
-        --vmmode longterm --cuckoo "$CUCKOO" --tags longterm \\
-        --cpu-count %(cpucount)s --vrde --vrde-port "$RDPPORT" "$EGGNAME"
+        --vmmode longterm --cuckoo "$CUCKOO" --cpu-count %(cpucount)s \\
+        --vrde --vrde-port "$RDPPORT" "$EGGNAME"
 done
 
 ) 9>/var/lock/longtermvmprovision
