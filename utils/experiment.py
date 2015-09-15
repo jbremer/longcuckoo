@@ -32,6 +32,8 @@ export PATH="$PATH:/usr/bin:/usr/local/bin"
 
 CUCKOO="%(cuckoo)s"
 EXPERIMENT="$CUCKOO/utils/experiment.py"
+BASEDIR="%(basedir)s"
+VMS="$BASEDIR/vms"
 
 # We strive to have at least 20 provisioned virtual machines at any point.
 while [ "$("$EXPERIMENT" count-available-machines verbose=false)" -lt 20 ]; do
@@ -40,7 +42,8 @@ while [ "$("$EXPERIMENT" count-available-machines verbose=false)" -lt 20 ]; do
     RDPPORT="$("$EXPERIMENT" allocate-rdp-port verbose=false)"
     vmcloak-clone -r --bird winxp_bird --hostonly-ip "$IPADDR" \\
         --vmmode longterm --cuckoo "$CUCKOO" --cpu-count %(cpucount)s \\
-        --vrde --vrde-port "$RDPPORT" "$EGGNAME"
+        --vrde --vrde-port "$RDPPORT" --vm-dir "$VMS" \\
+        --data-dir "$VMS" "$EGGNAME"
 done
 
 ) 9>/var/lock/longtermvmprovision
@@ -230,18 +233,20 @@ class ExperimentManager(object):
         else:
             print db.count_machines_available()
 
-    def handle_machine_cronjob(self, action="dump", cpucount=1, path=None):
+    def handle_machine_cronjob(self, action="dump", cpucount=1, path=None,
+                               basedir="/home/cuckoo"):
         """Manage the machine cronjob - for provisioning virtual machines
         for longterm analysis.
 
         [action   = Action to perform.]
         [path     = Cronjob path in install mode.]
         [cpucount = CPU Count for the Virtual Machines.]
+        [basedir  = Base directory for Virtual Machines.]
 
         """
         cuckoo = os.path.abspath(os.path.join(__file__, "..", ".."))
 
-        args = dict(cuckoo=cuckoo, cpucount=cpucount)
+        args = dict(cuckoo=cuckoo, cpucount=cpucount, basedir=basedir)
         cronjob = MACHINE_CRONTAB.strip() % args
 
         if action == "dump":
