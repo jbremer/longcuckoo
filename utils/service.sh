@@ -97,8 +97,6 @@ EOF
 # Cuckoo results processing service.
 
 description "cuckoo results processing"
-start on started cuckoo
-stop on stopped cuckoo
 setuid "$USERNAME"
 chdir "$CUCKOO"
 
@@ -118,8 +116,6 @@ EOF
 # Cuckoo API server service.
 
 description "cuckoo api server"
-start on started cuckoo
-stop on stopped cuckoo
 setuid "$USERNAME"
 chdir "$CUCKOO"
 
@@ -193,8 +189,6 @@ EOF
 # Cuckoo Web Interface server.
 
 description "cuckoo web interface service"
-start on started cuckoo
-stop on stopped cuckoo
 setuid "$USERNAME"
 chdir "$(readlink -f "$CUCKOO/web/")"
 
