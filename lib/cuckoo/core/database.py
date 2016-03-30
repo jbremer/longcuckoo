@@ -1154,7 +1154,7 @@ class Database(object):
                 delta = time_duration(task.experiment.delta)
 
             # If this tasks has no more runs left, then don't do anything.
-            if task.repeat == TASK_RECURRENT and task.runs == "0":
+            if task.repeat == TASK_RECURRENT and task.experiment.runs == "0":
                 return
 
             # Decrement the runcount by one, if not unlimited.
