@@ -272,6 +272,7 @@ class Experiment(Base):
                       default=datetime.now,
                       nullable=False)
     delta = Column(String(), nullable=True)
+    runs = Column(String(), nullable=True)
     machine_name = Column(Text(), nullable=True)
 
 class Task(Base):
@@ -906,7 +907,7 @@ class Database(object):
             custom="", machine="", platform="", tags=None,
             memory=False, enforce_timeout=False, clock=None,
             name=None, repeat=None, added_on=None, status=TASK_PENDING,
-            delta=None):
+            delta=None, runs=None):
         """Add a task to database.
         @param obj: object to add (File or URL).
         @param timeout: selected timeout.
@@ -965,7 +966,7 @@ class Database(object):
             task = Task(obj.url)
 
         # Create an experiment
-        experiment = Experiment(name=name, delta=delta)
+        experiment = Experiment(name=name, delta=delta, runs=runs)
         session.add(experiment)
         try:
             session.commit()
@@ -1027,7 +1028,7 @@ class Database(object):
                  priority=1, custom="", machine="", platform="", tags=None,
                  memory=False, enforce_timeout=False, clock=None,
                  experiment=None, repeat=None, added_on=None,
-                 status=TASK_PENDING, name=None, delta=None):
+                 status=TASK_PENDING, name=None, delta=None, runs=None):
         """Add a task to database from file path.
         @param file_path: sample path.
         @param timeout: selected timeout.
@@ -1055,12 +1056,12 @@ class Database(object):
         return self.add(File(file_path), timeout, package, options, priority,
                         custom, machine, platform, tags, memory,
                         enforce_timeout, clock, name, repeat, added_on, status,
-                        delta)
+                        delta, runs)
 
     def add_url(self, url, timeout=0, package="", options="", priority=1,
                 custom="", machine="", platform="", tags=None, memory=False,
                 enforce_timeout=False, clock=None, name=None, repeat=None,
-                added_on=None, status=TASK_PENDING, delta=None):
+                added_on=None, status=TASK_PENDING, delta=None, runs=None):
         """Add a task to database from url.
         @param url: url.
         @param timeout: selected timeout.
@@ -1085,7 +1086,7 @@ class Database(object):
         return self.add(URL(url), timeout, package, options, priority,
                         custom, machine, platform, tags, memory,
                         enforce_timeout, clock, name, repeat, added_on,
-                        status, delta)
+                        status, delta, runs)
 
     def start_task(self, task_id):
         session = self.Session()
@@ -1151,6 +1152,14 @@ class Database(object):
             # fall back on the delta set for this experiment.
             if delta is None:
                 delta = time_duration(task.experiment.delta)
+
+            # If this tasks has no more runs left, then don't do anything.
+            if task.repeat == TASK_RECURRENT and task.runs == "0":
+                return
+
+            # Decrement the runcount by one, if not unlimited.
+            if task.experiment.runs != "unlimited":
+                task.experiment.runs = "%d" % (int(task.experiment.runs)-1)
 
             # Schedule the next task.
             task.added_on = task.added_on + timedelta(seconds=delta)

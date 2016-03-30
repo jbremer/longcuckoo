@@ -429,9 +429,27 @@ def experiment_create_file():
     memory = request.forms.get("memory", False)
     clock = request.forms.get("clock", None)
     name = request.forms.get("name", None)
-    delta = request.forms.get("delta", None)
+    delta = request.forms.get("delta")
+    runs = request.forms.get("runs")
+
+    if runs != "unlimited" and not runs.isdigit():
+        return HTTPError(
+            400,
+            "Please provide the `runs` variable indicating the maximum "
+            "number of times this experiment should run."
+        )
+
+    delta = time_duration(delta)
+    if not delta:
+        return HTTPError(
+            400,
+            "Please provide a proper `delta` to specify the length of "
+            "each analysis run."
+        )
+
     if memory:
         memory = True
+
     enforce_timeout = request.forms.get("enforce_timeout", False)
     if enforce_timeout:
         enforce_timeout = True
@@ -452,7 +470,8 @@ def experiment_create_file():
         clock=clock,
         name=name,
         repeat=TASK_RECURRENT,
-        delta=time_duration(delta),
+        delta=delta,
+        runs=runs,
     )
 
     if task_id:
