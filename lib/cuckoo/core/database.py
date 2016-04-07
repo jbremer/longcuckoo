@@ -272,7 +272,7 @@ class Experiment(Base):
                       default=datetime.now,
                       nullable=False)
     delta = Column(String(), nullable=True)
-    runs = Column(String(), nullable=True)
+    runs = Column(Integer(), nullable=True)
     machine_name = Column(Text(), nullable=True)
 
 class Task(Base):
@@ -1153,13 +1153,14 @@ class Database(object):
             if delta is None:
                 delta = time_duration(task.experiment.delta)
 
-            # If this tasks has no more runs left, then don't do anything.
-            if task.repeat == TASK_RECURRENT and task.experiment.runs == "0":
-                return
+            # Decrease the runcount.
+            task.experiment.runs -= 1
 
-            # Decrement the runcount by one, if not unlimited.
-            if task.experiment.runs != "unlimited":
-                task.experiment.runs = "%d" % (int(task.experiment.runs)-1)
+            # If the runcount is one, release the machine lock after this
+            # analysis by updating its repeat status to TASK_SINGLE.
+            if task.experiment.runs == 1:
+                task.repeat = TASK_SINGLE
+                task.machine_name = None
 
             # Schedule the next task.
             task.added_on = task.added_on + timedelta(seconds=delta)
