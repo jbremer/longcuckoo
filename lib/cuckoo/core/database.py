@@ -1160,7 +1160,6 @@ class Database(object):
             # analysis by updating its repeat status to TASK_SINGLE.
             if task.experiment.runs == 1:
                 task.repeat = TASK_SINGLE
-                task.machine_name = None
 
             # Schedule the next task.
             task.added_on = task.added_on + timedelta(seconds=delta)
@@ -1298,7 +1297,8 @@ class Database(object):
             session.close()
         return True
 
-    def update_experiment(self, name, delta=None, timeout=None):
+    def update_experiment(self, name, id=None, delta=None, timeout=None,
+                          machine_name=False):
         """Update fields of an experiment.
 
         The updated values will be reflected when the next analysis takes
@@ -1306,12 +1306,17 @@ class Database(object):
         task.
 
         @param name: Experiment name.
+        @param id: Experiment ID.
         @param delta: Relative time to start the next analysis.
         @param timeout: Duration of the analysis.
+        @param machine_name: Machine name this experiment is bound to.
         """
         session = self.Session()
         try:
-            experiment = session.query(Experiment).filter_by(name=name).first()
+            if id is not None:
+                experiment = session.query(Experiment).get(id)
+            else:
+                experiment = session.query(Experiment).filter_by(name=name).first()
 
             if delta is not None:
                 experiment.delta = delta
@@ -1319,6 +1324,9 @@ class Database(object):
             if timeout is not None:
                 task = experiment.tasks.order_by(Task.id.desc()).first()
                 task.timeout = timeout
+
+            if machine_name is not False:
+                experiment.machine_name = machine_name
 
             session.commit()
         except SQLAlchemyError as e:

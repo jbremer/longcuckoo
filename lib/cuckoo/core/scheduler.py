@@ -352,6 +352,13 @@ class AnalysisManager(Thread):
                 if self.task.repeat == TASK_SINGLE:
                     log.debug("Freeing the machine since we're the last task of this experiment")
                     machinery.release(self.machine.label)
+
+                    # Unset the machine_name of this experiment.
+                    if self.task.experiment:
+                        Database().update_experiment(
+                            None, id=self.task.experiment.id,
+                            machine_name=None
+                        )
             except CuckooMachineError as e:
                 log.error("Unable to release machine %s, reason %s. "
                           "You might need to restore it manually.",
