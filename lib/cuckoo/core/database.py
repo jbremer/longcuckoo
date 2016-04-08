@@ -272,7 +272,10 @@ class Experiment(Base):
                       default=datetime.now,
                       nullable=False)
     delta = Column(String(), nullable=True)
+    # Amount of runs left for this Experiment.
     runs = Column(Integer(), nullable=True)
+    # Amount of times this Experiment has ran already.
+    times = Column(Integer(), nullable=True)
     machine_name = Column(Text(), nullable=True)
 
 class Task(Base):
@@ -966,7 +969,7 @@ class Database(object):
             task = Task(obj.url)
 
         # Create an experiment
-        experiment = Experiment(name=name, delta=delta, runs=runs)
+        experiment = Experiment(name=name, delta=delta, runs=runs, times=0)
         session.add(experiment)
         try:
             session.commit()
@@ -1153,8 +1156,9 @@ class Database(object):
             if delta is None:
                 delta = time_duration(task.experiment.delta)
 
-            # Decrease the runcount.
+            # Decrease the runcount and increase the times it was run.
             task.experiment.runs -= 1
+            task.experiment.times += 1
 
             # If the runcount is one, release the machine lock after this
             # analysis by updating its repeat status to TASK_SINGLE.

@@ -211,7 +211,7 @@ class AnalysisManager(Thread):
         if self.task.category == "file":
             sample = Database().view_sample(self.task.sample_id)
 
-            is_first_task = len(Database().list_tasks(experiment=self.task.experiment_id)) == 1
+            is_first_task = not self.task.experiment.times
 
             if is_first_task:
                 # Check whether the file has been changed for some unknown reason.
