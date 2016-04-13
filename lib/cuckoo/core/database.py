@@ -1448,10 +1448,11 @@ class Database(object):
 
             q = session.query(Experiment)
             if status == "unassigned":
-                q = q.filter_by(machine_name=None)
-            if status == "processing":
+                q = q.filter(Experiment.machine_name == null)
                 q = q.filter(Experiment.runs != 0)
+            if status == "processing":
                 q = q.filter(Experiment.machine_name != null)
+                q = q.filter(Experiment.runs != 0)
             if status == "finished":
                 q = q.filter_by(runs=0)
             experiment_count = q.count()
