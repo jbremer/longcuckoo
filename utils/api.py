@@ -367,6 +367,11 @@ def cuckoo_status():
             completed=db.count_tasks("completed"),
             reported=db.count_tasks("reported")
         ),
+        experiments=dict(
+            unassigned=db.count_experiments("unassigned"),
+            processing=db.count_experiments("processing"),
+            finished=db.count_experiments("finished"),
+        ),
     )
 
     return jsonize(response)

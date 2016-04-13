@@ -1440,6 +1440,28 @@ class Database(object):
             session.close()
         return sample_count
 
+    def count_experiments(self, status):
+        """Counts the amount of experiments in the database."""
+        session = self.Session()
+        try:
+            null = None
+
+            q = session.query(Experiment)
+            if status == "unassigned":
+                q = q.filter_by(machine_name=None)
+            if status == "processing":
+                q = q.filter(Experiment.runs != 0)
+                q = q.filter(Experiment.machine_name != null)
+            if status == "finished":
+                q = q.filter_by(runs=0)
+            experiment_count = q.count()
+        except SQLAlchemyError as e:
+            log.debug("Database error counting experiments: {0}".format(e))
+            return 0
+        finally:
+            session.close()
+        return experiment_count
+
     def view_machine(self, name):
         """Show virtual machine.
         @params name: virtual machine name
