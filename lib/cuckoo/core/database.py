@@ -1144,6 +1144,13 @@ class Database(object):
         if not task:
             return None
 
+        # Decrease the runcount and increase the times it was run.
+        experiment = self.update_experiment(
+            None, id=task.experiment_id,
+            runs=task.experiment.runs - 1,
+            times=task.experiment.times + 1,
+        )
+
         try:
             make_transient(task)
             task.id = None
@@ -1156,24 +1163,21 @@ class Database(object):
             if delta is None:
                 delta = time_duration(task.experiment.delta)
 
-            # Decrease the runcount and increase the times it was run.
-            task.experiment.runs -= 1
-            task.experiment.times += 1
-
-            # If the runcount is one, release the machine lock after this
-            # analysis by updating its repeat status to TASK_SINGLE.
-            if task.experiment.runs == 1:
-                task.repeat = TASK_SINGLE
-
             # Schedule the next task.
             task.added_on = task.added_on + timedelta(seconds=delta)
 
             if timeout is not None:
                 task.timeout = timeout
 
-            session.add(task)
-            session.commit()
-            session.refresh(task)
+            # Only schedule a new task if there are still runs left at this
+            # point (which is after decrementing the runs value).
+            if experiment.runs:
+                session.add(task)
+                session.commit()
+                session.refresh(task)
+            else:
+                session.commit()
+                task = None
         except SQLAlchemyError as e:
             log.debug("Database error rescheduling task: {0}".format(e))
             session.rollback()
@@ -1302,7 +1306,7 @@ class Database(object):
         return True
 
     def update_experiment(self, name, id=None, delta=None, timeout=None,
-                          machine_name=False):
+                          machine_name=False, runs=None, times=None):
         """Update fields of an experiment.
 
         The updated values will be reflected when the next analysis takes
@@ -1329,17 +1333,21 @@ class Database(object):
                 task = experiment.tasks.order_by(Task.id.desc()).first()
                 task.timeout = timeout
 
+            if runs is not None and times is not None:
+                experiment.runs = runs
+                experiment.times = times
+
             if machine_name is not False:
                 experiment.machine_name = machine_name
 
             session.commit()
+            session.refresh(experiment)
         except SQLAlchemyError as e:
             log.debug("Database error updating experiment: {0}".format(e))
             session.rollback()
-            return False
         finally:
             session.close()
-        return True
+            return experiment
 
     def delete_experiment(self, experiment_id):
         """Delete experiment by identifier."""

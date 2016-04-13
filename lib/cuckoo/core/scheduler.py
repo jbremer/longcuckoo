@@ -227,11 +227,10 @@ class AnalysisManager(Thread):
 
             self.create_symlink()
 
-        # FIXME - Scheduling should happen at the end of the experiment, but
-        #           since the management of the experiment is not final that
-        #           will do it.
+        # TODO Scheduling should happen at the end of the experiment.
+        scheduled = False
         if self.task.repeat == TASK_RECURRENT:
-            Database().schedule(self.task.id)
+            scheduled = Database().schedule(self.task.id)
 
         # Acquire analysis machine.
         try:
@@ -347,9 +346,8 @@ class AnalysisManager(Thread):
                 raise CuckooDeadMachine()
 
             try:
-                # Release the analysis machine. But only if the machine has
-                # not turned dead yet.
-                if self.task.repeat == TASK_SINGLE:
+                # Release the analysis machine.
+                if not scheduled:
                     log.debug("Freeing the machine since we're the last task of this experiment")
                     machinery.release(self.machine.label)
 
