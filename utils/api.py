@@ -437,7 +437,7 @@ def experiment_create_file():
     delta = request.forms.get("delta")
     runs = request.forms.get("runs", "")
 
-    if not runs.isdigit():
+    if not runs.lstrip("-").isdigit():
         return HTTPError(
             400,
             "Please provide the `runs` variable indicating the maximum "
